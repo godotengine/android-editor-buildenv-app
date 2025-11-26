@@ -36,7 +36,11 @@
         </activity>
         <service
             android:name=".BuildEnvironmentService"
+            android:label="Godot Gradle Build Environment Service"
             android:exported="true">
+            <intent-filter>
+                <action android:name="org.godotengine.action.BUILD_PROVIDER" />
+            </intent-filter>
         </service>
     </application>
 
