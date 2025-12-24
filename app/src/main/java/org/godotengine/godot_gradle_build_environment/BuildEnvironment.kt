@@ -68,7 +68,7 @@ class BuildEnvironment(
         val libDir = context.applicationInfo.nativeLibraryDir
         val proot = File(libDir, "libproot.so").absolutePath
 
-        val prootTmpDir = File(context.filesDir, "proot-tmp")
+        val prootTmpDir = AppPaths.getProotTmpDir(context)
         prootTmpDir.mkdirs()
 
         val env = HashMap(System.getenv())
@@ -101,7 +101,6 @@ class BuildEnvironment(
                 )
             )
             addAll(defaultEnv)
-            //add("HOME=/root")
             add("GRADLE_OPTS=-Djava.io.tmpdir=/alt-tmp")
             add(path)
             addAll(args)
@@ -141,9 +140,24 @@ class BuildEnvironment(
         val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
         val workDir = File(projectRoot, hash)
 
-        if (!workDir.exists()) {
-            FileUtils.tryCopyDirectory(fullPath, workDir)
+        // Clean up assets from a previous export.
+        if (workDir.exists()) {
+            val apkAssetsDir = File(workDir, "src/main/assets")
+            if (apkAssetsDir.exists()) {
+                apkAssetsDir.deleteRecursively()
+            }
+
+            val aabAssetsDir = File(workDir, "assetPackInstallTime/src/main/assets")
+            if (aabAssetsDir.exists()) {
+                aabAssetsDir.deleteRecursively()
+            }
         }
+
+        if (!FileUtils.tryCopyDirectory(fullPath, workDir)) {
+            throw IOException("Failed to copy $fullPath to $workDir")
+        }
+
+        ProjectInfo.writeToDirectory(workDir, projectPath, gradleBuildDir)
 
         return workDir
     }
@@ -154,10 +168,14 @@ class BuildEnvironment(
         val workDir = File(projectRoot, hash)
 
         if (workDir.exists()) {
-            // @todo Bring the copy back! Right now this is giving a permission error, but it would
-            //       make build times on subsequent runs much faster!
-            //FileUtils.tryCopyDirectory(workDir, fullPath)
             workDir.deleteRecursively()
+        }
+    }
+
+    fun cleanGlobalCache() {
+        val gradleCache = AppPaths.getGlobalGradleCache(context)
+        if (gradleCache.exists()) {
+            gradleCache.deleteRecursively()
         }
     }
 
@@ -168,7 +186,50 @@ class BuildEnvironment(
             .toList()
     }
 
+    /**
+     * Patches AAPT2 JAR files in the specified directory by replacing the aapt2 binary
+     * with the one bundled in the rootfs.
+     *
+     * @param hostDir The directory on the host filesystem to search for AAPT2 JARs
+     * @param boundPath The path where hostDir is bound inside the proot environment
+     * @param outputHandler Handler for output messages
+     * @return true if all patches succeeded or no JARs found; otherwise, false if any patch failed
+     */
+    private fun patchAapt2Jars(hostDir: File, boundPath: String, outputHandler: (Int, String) -> Unit): Boolean {
+        val jarFiles = findAapt2Jars(hostDir)
+        if (jarFiles.isEmpty()) {
+            return true
+        }
+
+        outputHandler(OUTPUT_INFO, "> Patching ${jarFiles.size} AAPT2 JAR(s) in $boundPath...")
+
+        for (jarFile in jarFiles) {
+            Log.d(TAG, "Found jar file: ${jarFile.absolutePath}")
+            val jarFileRelative = jarFile.relativeTo(hostDir)
+            val args = listOf(
+                "-c",
+                "jar -u -f $boundPath/${jarFileRelative.path} -C $(dirname $(which aapt2)) aapt2",
+            )
+            val jarUpdateResult = executeCommand(
+                "/bin/bash",
+                args,
+                listOf("${hostDir.absolutePath}:$boundPath"),
+                boundPath,
+                outputHandler
+            )
+            if (jarUpdateResult != 0) {
+                outputHandler(OUTPUT_STDERR, "Failed to patch ${jarFile.name}")
+                return false
+            }
+        }
+
+        return true
+    }
+
     private fun executeGradleInternal(gradleArgs: List<String>, workDir: File, outputHandler: (Int, String) -> Unit): Int {
+        val gradleCache = AppPaths.getGlobalGradleCache(context)
+        gradleCache.mkdirs()
+
         val gradleCmd = buildString {
             append("bash gradlew ")
             append(gradleArgs.joinToString(" ") { "\"$it\""})
@@ -185,6 +246,7 @@ class BuildEnvironment(
         val binds = listOf(
             Environment.getExternalStorageDirectory().absolutePath,
             "${workDir.absolutePath}:/project",
+            "${gradleCache.absolutePath}:/project/?",
         )
 
         return executeCommand(path, args, binds, "/project", outputHandler)
@@ -197,14 +259,15 @@ class BuildEnvironment(
     fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
         if (!isRootfsReady()) {
             outputHandler(OUTPUT_STDERR, "Rootfs isn't installed. Install it in the Godot Gradle Build Environment app.")
-            return 255;
+            return 255
         }
 
-        val workDir = setupProject(projectPath, gradleBuildDir)
-
-        // @todo This runs gradle in place - I think we could maybe hack proot until it works?
-        //val tmpDir = File(projectPath, gradleBuildDir)
-        //val workDir = tmpDir
+        val workDir = try {
+            setupProject(projectPath, gradleBuildDir)
+        } catch (e: Exception) {
+            outputHandler(OUTPUT_STDERR, "Unable to setup project: ${e.message}")
+            return 255
+        }
 
         val stderrBuilder = StringBuilder()
         val captureOutputHandler: (Int, String) -> Unit = { type, line ->
@@ -228,22 +291,18 @@ class BuildEnvironment(
         // Detect if we hit the AAPT2 issue.
         if (result != 0 && stderr.contains(Regex("""AAPT2 aapt2.*Daemon startup failed"""))) {
             outputHandler(OUTPUT_INFO, "> Detected AAPT2 issue - attempting to patch the JAR files...")
-            // Update the JAR files to include the aapt2 that is bundled in the rootfs.
-            findAapt2Jars(workDir).forEach { jarFile ->
-                Log.d(TAG, "Found jar file: ${jarFile.absolutePath}")
-                var jarFileRelative = jarFile.relativeTo(workDir)
-                var args = listOf(
-                    "-c",
-                    "jar -u -f /project/${jarFileRelative.path} -C $(dirname $(which aapt2)) aapt2",
-                )
-                val jarUpdateResult = executeCommand("/bin/bash", args, listOf("${workDir.absolutePath}:/project"), "/project", outputHandler)
-                if (jarUpdateResult != 0) {
-                    // If this failed, then there's not much else we can do.
-                    return jarUpdateResult;
-                }
+
+            // Patch AAPT2 JARs in both the project directory and the global gradle cache
+            val gradleCache = AppPaths.getGlobalGradleCache(context)
+            val patchSuccess = patchAapt2Jars(workDir, "/project", outputHandler) &&
+                               patchAapt2Jars(gradleCache, "/project/?", outputHandler)
+
+            if (!patchSuccess) {
+                // If patching failed, there's not much else we can do.
+                return 1
             }
 
-            // Now, try the running Gradle again!
+            // Now, try running Gradle again!
             outputHandler(OUTPUT_INFO, "> Retrying Gradle build...")
             result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
             val stderr = stderrBuilder.toString()
