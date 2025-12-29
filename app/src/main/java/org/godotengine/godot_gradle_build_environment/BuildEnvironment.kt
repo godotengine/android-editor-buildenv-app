@@ -183,7 +183,7 @@ class BuildEnvironment(
             gradleCmd,
         )
         val binds = listOf(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS).absolutePath,
+            Environment.getExternalStorageDirectory().absolutePath,
             "${workDir.absolutePath}:/project",
         )
 
