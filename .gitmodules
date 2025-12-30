@@ -1,9 +1,3 @@
 [submodule "thirdparty/proot/proot-source"]
 	path = thirdparty/proot/proot-source
 	url = https://github.com/termux/proot.git
-[submodule "thirdparty/alpine-android"]
-	path = thirdparty/alpine-android
-	url = https://github.com/alvr/alpine-android.git
-[submodule "thirdparty/android-sdk-tools/android-sdk-tools-source"]
-	path = thirdparty/android-sdk-tools/android-sdk-tools-source
-	url = https://github.com/dsnopek/android-sdk-tools.git
