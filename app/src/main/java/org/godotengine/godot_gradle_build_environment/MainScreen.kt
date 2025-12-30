@@ -41,7 +41,6 @@ fun MainScreen(
     context: Context,
     rootfs: File,
     rootfsReadyFile: File,
-    extractRootfs: () -> Unit,
     settingsManager: SettingsManager,
 ) {
     val initialTab = if (rootfsReadyFile.exists()) AppTab.PROJECTS else AppTab.ROOTFS
@@ -71,9 +70,9 @@ fun MainScreen(
                 modifier = Modifier.padding(innerPadding)
             )
             AppTab.ROOTFS -> RootfsScreen(
+                context = context,
                 rootfs = rootfs,
                 rootfsReadyFile = rootfsReadyFile,
-                extractRootfs = extractRootfs,
                 modifier = Modifier.padding(innerPadding)
             )
             AppTab.SETTINGS -> SettingsScreen(
