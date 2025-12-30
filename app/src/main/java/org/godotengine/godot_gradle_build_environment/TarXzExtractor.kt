@@ -8,72 +8,83 @@ import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
 
 object TarXzExtractor {
     fun extractAssetTarXz(context: Context, assetTarXz: String, destDir: File) {
+        context.assets.open(assetTarXz).use { inputStream ->
+            extractTarXz(inputStream, destDir)
+        }
+    }
+
+    fun extractFileTarXz(sourceFile: File, destDir: File) {
+        sourceFile.inputStream().use { inputStream ->
+            extractTarXz(inputStream, destDir)
+        }
+    }
+
+    private fun extractTarXz(inputStream: InputStream, destDir: File) {
         if (!destDir.exists() && !destDir.mkdirs()) {
             throw IllegalStateException("Could not create destination dir: ${destDir.absolutePath}")
         }
 
         val destRoot = destDir.canonicalFile
 
-        context.assets.open(assetTarXz).use { raw ->
-            BufferedInputStream(raw).use { buf ->
-                XZCompressorInputStream(buf).use { xz ->
-                    TarArchiveInputStream(xz).use { tar ->
-                        var entry = tar.nextTarEntry
-                        while (entry != null) {
-                            val outFile = File(destDir, entry.name)
-                            val outCanonical = outFile.canonicalFile
+        BufferedInputStream(inputStream).use { buf ->
+            XZCompressorInputStream(buf).use { xz ->
+                TarArchiveInputStream(xz).use { tar ->
+                    var entry = tar.nextTarEntry
+                    while (entry != null) {
+                        val outFile = File(destDir, entry.name)
+                        val outCanonical = outFile.canonicalFile
 
-                            if (!outCanonical.path.startsWith(destRoot.path + File.separator)) {
-                                entry = tar.nextTarEntry
-                                continue
-                            }
-
-                            when {
-                                entry.isDirectory -> {
-                                    if (!outCanonical.exists() && !outCanonical.mkdirs()) {
-                                        throw IllegalStateException("Could not create dir: ${outCanonical.absolutePath}")
-                                    }
-                                    applyMode(outCanonical, entry.mode)
-                                    applyMtime(outCanonical, entry.modTime.time)
-                                }
-
-                                entry.isSymbolicLink -> {
-                                    outCanonical.parentFile?.mkdirs()
-                                    try {
-                                        Os.symlink(entry.linkName, outCanonical.path)
-                                    } catch (e: ErrnoException) {
-                                        throw IllegalStateException("Failed to create symlink ${outCanonical.path} -> ${entry.linkName}: ${e.errno}", e)
-                                    }
-                                    applyMtime(outCanonical, entry.modTime.time)
-                                }
-
-                                entry.isLink -> {
-                                    outCanonical.parentFile?.mkdirs()
-                                    val target = File(destDir, entry.linkName).canonicalPath
-                                    try {
-                                        Os.link(target, outCanonical.path)
-                                    } catch (e: ErrnoException) {
-                                        copyFromFile(File(target), outCanonical)
-                                    }
-                                    applyMode(outCanonical, entry.mode)
-                                    applyMtime(outCanonical, entry.modTime.time)
-                                }
-
-                                else -> {
-                                    outCanonical.parentFile?.let { if (!it.exists()) it.mkdirs() }
-                                    FileOutputStream(outCanonical).use { fos ->
-                                        copyStream(tar, fos)
-                                    }
-                                    applyMode(outCanonical, entry.mode)
-                                    applyMtime(outCanonical, entry.modTime.time)
-                                }
-                            }
-
+                        if (!outCanonical.path.startsWith(destRoot.path + File.separator)) {
                             entry = tar.nextTarEntry
+                            continue
                         }
+
+                        when {
+                            entry.isDirectory -> {
+                                if (!outCanonical.exists() && !outCanonical.mkdirs()) {
+                                    throw IllegalStateException("Could not create dir: ${outCanonical.absolutePath}")
+                                }
+                                applyMode(outCanonical, entry.mode)
+                                applyMtime(outCanonical, entry.modTime.time)
+                            }
+
+                            entry.isSymbolicLink -> {
+                                outCanonical.parentFile?.mkdirs()
+                                try {
+                                    Os.symlink(entry.linkName, outCanonical.path)
+                                } catch (e: ErrnoException) {
+                                    throw IllegalStateException("Failed to create symlink ${outCanonical.path} -> ${entry.linkName}: ${e.errno}", e)
+                                }
+                                applyMtime(outCanonical, entry.modTime.time)
+                            }
+
+                            entry.isLink -> {
+                                outCanonical.parentFile?.mkdirs()
+                                val target = File(destDir, entry.linkName).canonicalPath
+                                try {
+                                    Os.link(target, outCanonical.path)
+                                } catch (e: ErrnoException) {
+                                    copyFromFile(File(target), outCanonical)
+                                }
+                                applyMode(outCanonical, entry.mode)
+                                applyMtime(outCanonical, entry.modTime.time)
+                            }
+
+                            else -> {
+                                outCanonical.parentFile?.let { if (!it.exists()) it.mkdirs() }
+                                FileOutputStream(outCanonical).use { fos ->
+                                    copyStream(tar, fos)
+                                }
+                                applyMode(outCanonical, entry.mode)
+                                applyMtime(outCanonical, entry.modTime.time)
+                            }
+                        }
+
+                        entry = tar.nextTarEntry
                     }
                 }
             }
