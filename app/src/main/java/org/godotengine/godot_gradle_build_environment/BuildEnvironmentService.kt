@@ -132,7 +132,6 @@ class BuildEnvironmentService : Service() {
         var result = 255
 
         if (args != null && projectPath != null && gradleBuildDir != null) {
-            Log.d(TAG, "Received Gradle execute request: ${args} on ${projectPath} / ${gradleBuildDir}")
             result = mBuildEnvironment.executeGradle(args, projectPath, gradleBuildDir, { type, line ->
                 val reply = Message.obtain(null, MSG_COMMAND_OUTPUT, id, type)
                 val replyData = Bundle()

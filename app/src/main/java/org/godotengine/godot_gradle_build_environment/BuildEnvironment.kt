@@ -53,6 +53,15 @@ class BuildEnvironment(
         }
     }
 
+    private fun sanitizeCommand(cmd: List<String>): String {
+        val cmdString = cmd.toString()
+        val pattern = Regex("""-P(debug|release)_keystore_[a-z_]+=[^,\s\]"]+""")
+        return pattern.replace(cmdString) { matchResult ->
+            val prefix = matchResult.value.substringBefore('=')
+            "$prefix=<REDACTED>"
+        }
+    }
+
     fun executeCommand(
         path: String,
         args: List<String>,
@@ -107,7 +116,9 @@ class BuildEnvironment(
             addAll(args)
         }
 
-        Log.i(TAG, "Cmd: " + cmd.toString())
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, "Cmd: " + sanitizeCommand(cmd))
+        }
 
         currentProcess = ProcessBuilder(cmd).apply {
             directory(context.filesDir)
