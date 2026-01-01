@@ -14,20 +14,22 @@ import android.util.Log
 import java.io.File
 import java.util.LinkedList
 
-private const val MSG_EXECUTE_GRADLE = 1
-private const val MSG_COMMAND_RESULT = 2
-private const val MSG_COMMAND_OUTPUT = 3
-private const val MSG_CANCEL_COMMAND = 4
-private const val MSG_CLEAN_PROJECT = 5
-
 class BuildEnvironmentService : Service() {
 
     companion object {
         private const val TAG = "BuildEnvironmentService"
+
+        const val MSG_EXECUTE_GRADLE = 1
+        const val MSG_COMMAND_RESULT = 2
+        const val MSG_COMMAND_OUTPUT = 3
+        const val MSG_CANCEL_COMMAND = 4
+        const val MSG_CLEAN_PROJECT = 5
+        const val MSG_CLEAN_GLOBAL_CACHE = 6
     }
 
     private lateinit var mMessenger: Messenger
     private lateinit var mBuildEnvironment: BuildEnvironment
+    private lateinit var mSettingsManager: SettingsManager
     private lateinit var mWorkThread: HandlerThread
     private lateinit var mWorkHandler: Handler
 
@@ -43,6 +45,7 @@ class BuildEnvironmentService : Service() {
         val rootfs = AppPaths.getRootfs(this).absolutePath
         val projectDir = AppPaths.getProjectDir(this).absolutePath
         mBuildEnvironment = BuildEnvironment(this, rootfs, projectDir)
+        mSettingsManager = SettingsManager(this)
 
         mWorkThread = HandlerThread("BuildEnvironmentServiceWorker")
         mWorkThread.start()
@@ -55,9 +58,10 @@ class BuildEnvironmentService : Service() {
                 copy.copyFrom(msg)
 
                 when (msg.what) {
-                    MSG_EXECUTE_GRADLE -> queueWork(WorkItem(copy, msg.arg1))
-                    MSG_CANCEL_COMMAND -> cancelWork(msg.arg1)
-                    MSG_CLEAN_PROJECT -> queueWork(WorkItem(copy, msg.arg1))
+                    Companion.MSG_EXECUTE_GRADLE -> queueWork(WorkItem(copy, msg.arg1))
+                    Companion.MSG_CANCEL_COMMAND -> cancelWork(msg.arg1)
+                    Companion.MSG_CLEAN_PROJECT -> queueWork(WorkItem(copy, msg.arg1))
+                    Companion.MSG_CLEAN_GLOBAL_CACHE -> queueWork(WorkItem(copy, msg.arg1))
                 }
             }
         }
@@ -88,12 +92,12 @@ class BuildEnvironmentService : Service() {
         }
 
         Log.i(TAG, "Canceling command: ${id}")
-        
+
         synchronized(lock) {
-            if (currentItem?.id == id && currentItem?.msg?.what == MSG_EXECUTE_GRADLE) {
+            if (currentItem?.id == id && currentItem?.msg?.what == Companion.MSG_EXECUTE_GRADLE) {
                 mBuildEnvironment.killCurrentProcess()
             }
-            queue.removeAll { it.id == id && it.msg.what == MSG_EXECUTE_GRADLE }
+            queue.removeAll { it.id == id && it.msg.what == Companion.MSG_EXECUTE_GRADLE }
         }
     }
 
@@ -113,8 +117,9 @@ class BuildEnvironmentService : Service() {
     private fun handleMessage(msg: Message) {
         try {
             when (msg.what) {
-                MSG_EXECUTE_GRADLE -> executeGradle(msg)
-                MSG_CLEAN_PROJECT -> cleanProject(msg)
+                Companion.MSG_EXECUTE_GRADLE -> executeGradle(msg)
+                Companion.MSG_CLEAN_PROJECT -> cleanProject(msg)
+                Companion.MSG_CLEAN_GLOBAL_CACHE -> cleanGlobalCache(msg)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: ${e.message}")
@@ -133,7 +138,7 @@ class BuildEnvironmentService : Service() {
 
         if (args != null && projectPath != null && gradleBuildDir != null) {
             result = mBuildEnvironment.executeGradle(args, projectPath, gradleBuildDir, { type, line ->
-                val reply = Message.obtain(null, MSG_COMMAND_OUTPUT, id, type)
+                val reply = Message.obtain(null, Companion.MSG_COMMAND_OUTPUT, id, type)
                 val replyData = Bundle()
                 replyData.putString("line", line)
                 reply.data = replyData
@@ -146,7 +151,7 @@ class BuildEnvironmentService : Service() {
             })
         }
 
-        val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, result)
+        val reply = Message.obtain(null, Companion.MSG_COMMAND_RESULT, id, result)
         try {
             msg.replyTo.send(reply)
         } catch (e: RemoteException) {
@@ -158,12 +163,24 @@ class BuildEnvironmentService : Service() {
         val data = msg.data
         val projectPath = data.getString("project_path")
         val gradleBuildDir = data.getString("gradle_build_directory")
+        val forceClean = data.getBoolean("force_clean", false)
 
-        if (projectPath != null && gradleBuildDir != null) {
+        if (projectPath != null && gradleBuildDir != null && (forceClean || mSettingsManager.clearCacheAfterBuild)) {
             mBuildEnvironment.cleanProject(projectPath, gradleBuildDir)
         }
 
-        val reply = Message.obtain(null, MSG_COMMAND_RESULT, msg.arg1, 0)
+        val reply = Message.obtain(null, Companion.MSG_COMMAND_RESULT, msg.arg1, 0)
+        try {
+            msg.replyTo.send(reply)
+        } catch (e: RemoteException) {
+            Log.e(TAG, "Error sending result to client: ${e.message}")
+        }
+    }
+
+    private fun cleanGlobalCache(msg: Message) {
+        mBuildEnvironment.cleanGlobalCache()
+
+        val reply = Message.obtain(null, Companion.MSG_COMMAND_RESULT, msg.arg1, 0)
         try {
             msg.replyTo.send(reply)
         } catch (e: RemoteException) {

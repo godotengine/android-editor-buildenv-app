@@ -1,10 +1,15 @@
 package org.godotengine.godot_gradle_build_environment
 
+import android.os.Build
 import android.util.Log
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.file.Files
+import kotlin.math.log10
+import kotlin.math.min
+import kotlin.math.pow
 
 object FileUtils {
 
@@ -52,6 +57,51 @@ object FileUtils {
         }
 
         return success
+    }
+
+    /**
+     * Recursively calculates the total size of a directory in bytes.
+     */
+    fun calculateDirectorySize(directory: File): Long {
+        if (!directory.exists() || !directory.isDirectory) {
+            return 0L
+        }
+
+        var size = 0L
+        val files = directory.listFiles() ?: return 0L
+
+        for (file in files) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (Files.isSymbolicLink(file.toPath())) {
+                    continue
+                }
+            }
+
+            size += if (file.isDirectory) {
+                calculateDirectorySize(file)
+            } else {
+                file.length()
+            }
+        }
+
+        return size
+    }
+
+    /**
+     * Formats a byte size into a human-readable string with appropriate units.
+     * For example: "1.5 KB", "234.6 MB", "2.3 GB"
+     */
+    fun formatSize(bytes: Long): String {
+        if (bytes < 1024) {
+            return "$bytes B"
+        }
+
+        val units = arrayOf("KB", "MB", "GB", "TB")
+        val exp = (log10(bytes.toDouble()) / log10(1024.0)).toInt()
+        val unitIndex = min(exp - 1, units.size - 1)
+        val value = bytes / 1024.0.pow((unitIndex + 1).toDouble())
+
+        return String.format("%.1f %s", value, units[unitIndex])
     }
 
 }
