@@ -19,26 +19,6 @@ class MainActivity : ComponentActivity() {
         private const val REQUEST_MANAGE_EXTERNAL_STORAGE_REQ_CODE = 2002
     }
 
-    private fun extractRootfs() {
-        val rootfs = AppPaths.getRootfs(this)
-        if (rootfs.exists()) {
-            rootfs.deleteRecursively()
-        }
-        rootfs.mkdirs()
-        TarXzExtractor.extractAssetTarXz(this, "linux-rootfs/alpine-android-35-jdk17.tar.xz", rootfs)
-
-        // Docker doesn't let us write resolv.conf and so we take this extra unpacking step.
-        val resolveConf = File(rootfs, "etc/resolv.conf")
-        val resolveConfOverride = File(rootfs, "etc/resolv.conf.override")
-        if (resolveConfOverride.exists()) {
-            if (FileUtils.tryCopyFile(resolveConfOverride, resolveConf)) {
-                resolveConfOverride.delete()
-            }
-        }
-
-        AppPaths.getRootfsReadyFile(this).createNewFile()
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -62,7 +42,6 @@ class MainActivity : ComponentActivity() {
                     this,
                     AppPaths.getRootfs(this),
                     AppPaths.getRootfsReadyFile(this),
-                    { extractRootfs() },
                     SettingsManager(this),
                 )
             }
