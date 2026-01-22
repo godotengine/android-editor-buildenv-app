@@ -34,11 +34,10 @@ class BuildEnvironment(
 
     }
 
-    private val defaultEnv: List<String>
     private var currentProcess: Process? = null
 
-    init {
-        defaultEnv = try {
+    private fun getDefaultEnv(): List<String> {
+        return try {
             File(rootfs, "env").readLines()
         } catch (e: IOException) {
             Log.i(TAG, "Unable to read default environment from $rootfs/env: $e")
@@ -117,7 +116,7 @@ class BuildEnvironment(
                     "/usr/bin/env", "-i",
                 )
             )
-            addAll(defaultEnv)
+            addAll(getDefaultEnv())
             add("GRADLE_OPTS=-Djava.io.tmpdir=/alt-tmp")
             add(path)
             addAll(args)
