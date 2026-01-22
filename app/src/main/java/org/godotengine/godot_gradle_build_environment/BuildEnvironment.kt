@@ -6,6 +6,7 @@ import android.os.Environment
 import android.util.Log
 import java.io.BufferedReader
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
@@ -21,9 +22,16 @@ class BuildEnvironment(
         private const val STDOUT_TAG = "BuildEnvironment-Stdout"
         private const val STDERR_TAG = "BuildEnvironment-Stderr"
 
-        public const val OUTPUT_INFO = 0;
-        public const val OUTPUT_STDOUT = 1;
-        public const val OUTPUT_STDERR = 2;
+        const val OUTPUT_INFO = 0;
+        const val OUTPUT_STDOUT = 1;
+        const val OUTPUT_STDERR = 2;
+
+        const val ROOTFS_GITHUB_REPO = "godotengine/android-editor-buildenv-rootfs"
+        const val ROOTFS_VERSION_CUSTOM = "custom"
+
+        private const val ROOTFS_FILENAME = "alpine-android-35-jdk17.tar.xz"
+        private const val ROOTFS_ASSET_PATH = "linux-rootfs/$ROOTFS_FILENAME"
+
     }
 
     private val defaultEnv: List<String>
@@ -187,6 +195,80 @@ class BuildEnvironment(
         val gradleCache = AppPaths.getGlobalGradleCache(context)
         if (gradleCache.exists()) {
             gradleCache.deleteRecursively()
+        }
+    }
+
+    fun installRootfs(outputHandler: (Int, String) -> Unit) {
+        val rootfs = File(this.rootfs)
+
+        if (rootfs.exists()) {
+            outputHandler(OUTPUT_INFO, "> Removing existing rootfs...")
+            rootfs.deleteRecursively()
+        }
+
+        rootfs.mkdirs()
+
+        val hasAsset = try {
+            context.assets.list("linux-rootfs")?.contains(ROOTFS_FILENAME) == true
+        } catch (e: Exception) {
+            false
+        }
+
+        val version: String
+        if (hasAsset) {
+            outputHandler(OUTPUT_INFO, "> Extracting rootfs from assets...")
+            TarXzExtractor.extractAssetTarXz(context, ROOTFS_ASSET_PATH, rootfs)
+            version = ROOTFS_VERSION_CUSTOM
+        } else {
+            val tempFile = File(context.cacheDir, ROOTFS_FILENAME)
+            try {
+                val releaseTag = GitHubReleaseDownloader.downloadLatestReleaseAsset(
+                    ROOTFS_GITHUB_REPO,
+                    ROOTFS_FILENAME,
+                    tempFile
+                ) { message ->
+                    outputHandler(OUTPUT_INFO, message)
+                }
+                version = releaseTag
+
+                outputHandler(OUTPUT_INFO, "> Extracting rootfs...")
+                TarXzExtractor.extractFileTarXz(tempFile, rootfs)
+            } finally {
+                if (tempFile.exists()) {
+                    tempFile.delete()
+                }
+            }
+        }
+
+        val resolveConf = File(rootfs, "etc/resolv.conf")
+        val resolveConfOverride = File(rootfs, "etc/resolv.conf.override")
+        if (resolveConfOverride.exists()) {
+            if (FileUtils.tryCopyFile(resolveConfOverride, resolveConf)) {
+                resolveConfOverride.delete()
+            }
+        }
+
+        val readyFile = AppPaths.getRootfsReadyFile(File(this.rootfs))
+        FileOutputStream(readyFile).use { fos ->
+            fos.write(version.toByteArray())
+            fos.fd.sync()
+        }
+        outputHandler(OUTPUT_INFO, "> Rootfs installation complete!")
+    }
+
+    fun deleteRootfs() {
+        val rootfs = File(this.rootfs)
+        if (rootfs.exists()) {
+            rootfs.deleteRecursively()
+        }
+    }
+
+    fun getRootfsVersion(): String? {
+        val readyFile = AppPaths.getRootfsReadyFile(File(this.rootfs))
+        return if (readyFile.exists()) {
+            readyFile.readText().trim()
+        } else {
+            null
         }
     }
 

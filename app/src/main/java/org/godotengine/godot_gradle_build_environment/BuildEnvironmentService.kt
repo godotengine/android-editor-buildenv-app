@@ -25,6 +25,8 @@ class BuildEnvironmentService : Service() {
         const val MSG_CANCEL_COMMAND = 4
         const val MSG_CLEAN_PROJECT = 5
         const val MSG_CLEAN_GLOBAL_CACHE = 6
+        const val MSG_INSTALL_ROOTFS = 7
+        const val MSG_DELETE_ROOTFS = 8
     }
 
     private lateinit var mMessenger: Messenger
@@ -62,6 +64,8 @@ class BuildEnvironmentService : Service() {
                     MSG_CANCEL_COMMAND -> cancelWork(msg.arg1)
                     MSG_CLEAN_PROJECT -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_CLEAN_GLOBAL_CACHE -> queueWork(WorkItem(copy, msg.arg1))
+                    MSG_INSTALL_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
+                    MSG_DELETE_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
                 }
             }
         }
@@ -120,6 +124,8 @@ class BuildEnvironmentService : Service() {
                 MSG_EXECUTE_GRADLE -> executeGradle(msg)
                 MSG_CLEAN_PROJECT -> cleanProject(msg)
                 MSG_CLEAN_GLOBAL_CACHE -> cleanGlobalCache(msg)
+                MSG_INSTALL_ROOTFS -> installRootfs(msg)
+                MSG_DELETE_ROOTFS -> deleteRootfs(msg)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling message: ${e.message}")
@@ -181,6 +187,71 @@ class BuildEnvironmentService : Service() {
         mBuildEnvironment.cleanGlobalCache()
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, msg.arg1, 0)
+        try {
+            msg.replyTo.send(reply)
+        } catch (e: RemoteException) {
+            Log.e(TAG, "Error sending result to client: ${e.message}")
+        }
+    }
+
+    private fun installRootfs(msg: Message) {
+        val id = msg.arg1
+        var result = 0
+        var errorMessage: String? = null
+
+        try {
+            mBuildEnvironment.installRootfs { type, line ->
+                val outputMsg = Message.obtain(null, MSG_COMMAND_OUTPUT, id, type)
+                val outputData = Bundle()
+                outputData.putString("line", line)
+                outputMsg.data = outputData
+
+                try {
+                    msg.replyTo.send(outputMsg)
+                } catch (e: RemoteException) {
+                    Log.e(TAG, "Error sending output to client: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error installing rootfs: ${e.message}", e)
+            result = 1
+            errorMessage = e.message
+        }
+
+        val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, result)
+        val replyData = Bundle()
+        if (errorMessage != null) {
+            replyData.putString("error", errorMessage)
+        }
+        reply.data = replyData
+
+        try {
+            msg.replyTo.send(reply)
+        } catch (e: RemoteException) {
+            Log.e(TAG, "Error sending result to client: ${e.message}")
+        }
+    }
+
+    private fun deleteRootfs(msg: Message) {
+        val id = msg.arg1
+        var result = 0
+        var errorMessage: String? = null
+
+        try {
+            mBuildEnvironment.deleteRootfs()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting rootfs: ${e.message}", e)
+            result = 1
+            errorMessage = e.message
+        }
+
+        val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, result)
+        val replyData = Bundle()
+        if (errorMessage != null) {
+            replyData.putString("error", errorMessage)
+        }
+        reply.data = replyData
+
         try {
             msg.replyTo.send(reply)
         } catch (e: RemoteException) {
