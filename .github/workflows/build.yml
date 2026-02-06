@@ -1,0 +1,77 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28b
+
+      - name: Build proot
+        run: |
+          thirdparty/proot/build.sh
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Build debug APK
+        run: |
+          ./gradlew assembleDebug
+
+      - name: Decode keystore
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.KEYSTORE }}" | base64 -d > /tmp/release.keystore
+
+      - name: Build release APK
+        if: github.ref == 'refs/heads/main'
+        env:
+          GABE_RELEASE_KEYSTORE_FILE: /tmp/release.keystore
+          GABE_RELEASE_SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          GABE_RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          GABE_RELEASE_KEY_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew assembleRelease
+
+      - name: Build release AAB
+        if: github.ref == 'refs/heads/main'
+        env:
+          GABE_RELEASE_KEYSTORE_FILE: /tmp/release.keystore
+          GABE_RELEASE_SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+          GABE_RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          GABE_RELEASE_KEY_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease
+
+      - name: Upload debug artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-artifacts
+          path: |
+            app/build/outputs/apk/debug/
+
+      - name: Upload release artifacts
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            app/build/outputs/apk/release/
+            app/build/outputs/bundle/release/

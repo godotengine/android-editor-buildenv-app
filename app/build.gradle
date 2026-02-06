@@ -10,6 +10,8 @@ android {
     compileSdk = 35
     ndkVersion = '28.1.13356709'
 
+    def keystoreFile = System.getenv("GABE_RELEASE_KEYSTORE_FILE")
+
     sourceSets {
         main {
             jniLibs.srcDirs += [
@@ -28,8 +30,22 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    if (keystoreFile != null) {
+        signingConfigs {
+            release {
+                storeFile file(System.getenv("GABE_RELEASE_KEYSTORE_FILE"))
+                storePassword System.getenv("GABE_RELEASE_SIGNING_PASSWORD")
+                keyAlias System.getenv("GABE_RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("GABE_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystoreFile != null) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
