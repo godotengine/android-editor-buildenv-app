@@ -25,21 +25,6 @@ object FileUtils {
         return true
     }
 
-    fun tryCopyDirectory(sourceDir: File, destDir: File): Boolean {
-        if (!sourceDir.isDirectory) {
-            Log.e(TAG, "Source directory ${sourceDir.absolutePath} not found")
-            return false
-        }
-
-        try {
-            sourceDir.copyRecursively(destDir)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to copy ${sourceDir.absolutePath} -> ${destDir.absolutePath}: ${e.message}", e)
-            return false
-        }
-        return true
-    }
-
     /**
      * Recursively calculates the total size of a directory in bytes.
      */

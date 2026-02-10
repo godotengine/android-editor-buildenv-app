@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -11,6 +12,8 @@ import android.os.Looper
 import android.os.Message
 import android.os.Messenger
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -53,6 +57,7 @@ import org.godotengine.godot_gradle_build_environment.CachedProject
 import org.godotengine.godot_gradle_build_environment.FileUtils
 import org.godotengine.godot_gradle_build_environment.ProjectInfo
 import org.godotengine.godot_gradle_build_environment.R
+import androidx.core.content.edit
 
 @Composable
 fun ProjectsScreen(modifier: Modifier = Modifier) {
@@ -162,15 +167,14 @@ private fun deleteProject(
     msg.replyTo = replyMessenger
 
     val data = Bundle()
-    data.putString("project_path", project.info.projectPath)
-    data.putString("gradle_build_directory", project.info.gradleBuildDir)
+    data.putString("project_cache_dir_hash", project.info.projectCacheDirHash)
     data.putBoolean("force_clean", true)
     msg.data = data
 
     try {
         serviceMessenger.send(msg)
     } catch (e: Exception) {
-        Log.e("ProjectsScreen", "Error sending delete message for project ${project.info.getProjectName()}: ${e.message}")
+        Log.e("ProjectsScreen", "Error sending delete message for project ${project.info.projectName}: ${e.message}")
     }
 }
 
@@ -221,12 +225,12 @@ private fun ProjectItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = project.info.getProjectName(),
+                    text = project.info.projectName,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = project.info.projectPath,
+                    text = project.info.projectTreeUri,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)

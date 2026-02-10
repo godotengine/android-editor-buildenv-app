@@ -155,12 +155,11 @@ class BuildEnvironmentService : Service() {
 
     private fun cleanProject(msg: Message) {
         val data = msg.data
-        val projectPath = data.getString("project_path")
-        val gradleBuildDir = data.getString("gradle_build_directory")
+        val projectCacheDirHash = data.getString("project_cache_dir_hash")
         val forceClean = data.getBoolean("force_clean", false)
 
-        if (projectPath != null && gradleBuildDir != null && (forceClean || mSettingsManager.clearCacheAfterBuild)) {
-            mBuildEnvironment.cleanProject(projectPath, gradleBuildDir)
+        if (projectCacheDirHash != null && (forceClean || mSettingsManager.clearCacheAfterBuild)) {
+            mBuildEnvironment.cleanProject(projectCacheDirHash)
         }
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, msg.arg1, 0)
