@@ -1,19 +1,19 @@
 package org.godotengine.godot_gradle_build_environment
 
+import android.content.Context
+import android.net.Uri
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
+import androidx.documentfile.provider.DocumentFile
 
 @Serializable
 data class ProjectInfo(
     val projectPath: String,
-    val gradleBuildDir: String
+    val gradleBuildDir: String,
+    val projectTreeUri: String,
+    val projectName: String
 ) {
-    fun getProjectName(): String {
-        return File(projectPath).name
-    }
-
     companion object {
         private const val PROJECT_INFO_FILENAME = ".gabe_project_info.json"
 
@@ -22,8 +22,9 @@ data class ProjectInfo(
             ignoreUnknownKeys = true
         }
 
-        fun writeToDirectory(directory: File, projectPath: String, gradleBuildDir: String) {
-            val projectInfo = ProjectInfo(projectPath, gradleBuildDir)
+        fun writeToDirectory(context: Context, directory: File, projectPath: String, gradleBuildDir: String, projectTreeUri: Uri) {
+            val name = DocumentFile.fromTreeUri(context, projectTreeUri)?.name ?: "Unknown Project"
+            val projectInfo = ProjectInfo(projectPath, gradleBuildDir, projectTreeUri.toString(), name)
             val jsonString = json.encodeToString(projectInfo)
             val file = File(directory, PROJECT_INFO_FILENAME)
             file.writeText(jsonString)
@@ -53,7 +54,7 @@ data class ProjectInfo(
                         CachedProject(dir, info)
                     }
                 }
-                ?.sortedBy { it.info.getProjectName() }
+                ?.sortedBy { it.info.projectName }
                 ?: emptyList()
         }
     }

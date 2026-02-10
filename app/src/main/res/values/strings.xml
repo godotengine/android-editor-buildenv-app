@@ -7,4 +7,13 @@
     <string name="deleting_rootfs_message">Deleting rootfs...</string>
     <string name="missing_rootfs_message">Rootfs is not installed!\nYou will not be able to do an Gradle builds until you install it.</string>
     <string name="rootfs_ready_message">Rootfs appears to be installed!</string>
+    <string name="gradle_build_dir_label">Gradle Build Directory</string>
+    <string name="notification_perm_request_title">Notification permission required</string>
+    <string name="notification_perm_request_message">GABE needs notification permission to request access to your project directory when a gradle build is started. Without it, builds cannot continue.</string>
+    <string name="perm_request_positive_btn">Allow</string>
+    <string name="perm_request_negative_btn">Not now</string>
+    <string name="dir_access_notification_channel_name">Project Access</string>
+    <string name="dir_access_notification_channel_description">Requests access to the project directory</string>
+    <string name="dir_access_notification_title">Directory access required</string>
+    <string name="dir_access_notification_message">Tap to grant access to the project directory</string>
 </resources>

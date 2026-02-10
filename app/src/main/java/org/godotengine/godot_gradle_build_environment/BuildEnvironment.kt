@@ -1,15 +1,21 @@
 package org.godotengine.godot_gradle_build_environment
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.util.Log
+import androidx.core.content.ContextCompat.checkSelfPermission
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 class BuildEnvironment(
     private val context: Context,
@@ -32,9 +38,15 @@ class BuildEnvironment(
         private const val ROOTFS_FILENAME = "alpine-android-35-jdk17.tar.xz"
         private const val ROOTFS_ASSET_PATH = "linux-rootfs/$ROOTFS_FILENAME"
 
+        private const val DIR_ACCESS_WAIT_DURATION: Long = 120000 // in milliseconds
+
     }
 
     private var currentProcess: Process? = null
+
+    private val accessLock = ReentrantLock()
+    private val accessLockCondition = accessLock.newCondition()
+    @Volatile private var grantedTreeUri: Uri? = null
 
     private fun getDefaultEnv(): List<String> {
         return try {
@@ -153,41 +165,71 @@ class BuildEnvironment(
         return exitCode
     }
 
-    private fun setupProject(projectPath: String, gradleBuildDir: String): File {
-        val fullPath = File(projectPath, gradleBuildDir)
-        val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
-        val workDir = File(projectRoot, hash)
-
-        // Clean up assets from a previous export.
-        if (workDir.exists()) {
-            val apkAssetsDir = File(workDir, "src/main/assets")
-            if (apkAssetsDir.exists()) {
-                apkAssetsDir.deleteRecursively()
+    private fun setupProject(projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): File {
+        var projectTreeUri = FileUtils.getProjectTreeUri(context, projectPath)
+        if (projectTreeUri == null) {
+            if (checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
+                outputHandler(OUTPUT_STDERR, "Project path \"$projectPath\" is not accessible. " +
+                        "Click on the build notification and give ${context.getString(R.string.app_launcher_name)} app access to the project directory.")
+                Utils.showDirectoryAccessNotification(context, projectPath)
+            } else {
+                throw SecurityException("POST_NOTIFICATIONS permission not granted. " +
+                        "Please grant POST_NOTIFICATIONS permission for ${context.getString(R.string.app_launcher_name)} app and retry.")
             }
 
-            val aabAssetsDir = File(workDir, "assetPackInstallTime/src/main/assets")
-            if (aabAssetsDir.exists()) {
-                aabAssetsDir.deleteRecursively()
+            projectTreeUri = waitForDirectoryAccess(DIR_ACCESS_WAIT_DURATION)
+                ?: throw Exception("Directory access not granted in time. Build canceled.")
+            outputHandler(OUTPUT_INFO, "Access granted for $projectPath. Starting Gradle build...")
+            FileUtils.saveProjectTreeUri(context, projectPath, projectTreeUri)
+
+            // Notify user if limit is reached so they can clear older projects.
+            val persistedCount = context.contentResolver.persistedUriPermissions.size
+            val limit = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) 128 else 512
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R && persistedCount == limit) {
+                outputHandler(OUTPUT_INFO, "Warning: Persisted directory access limit reached." +
+                        "This build will continue, but new projects would require clearing older ones in ${context.getString(R.string.app_launcher_name)} app")
+            }
+            if (persistedCount > 512) {
+                throw IllegalStateException("Persisted URI permission limit reached")
             }
         }
 
-        if (!FileUtils.tryCopyDirectory(fullPath, workDir)) {
-            throw IOException("Failed to copy $fullPath to $workDir")
+        val workDir = Utils.getProjectCacheDir(context, projectPath, gradleBuildDir)
+        if (!workDir.exists()) {
+            workDir.mkdirs()
+            ProjectInfo.writeToDirectory(context, workDir, projectPath, gradleBuildDir, projectTreeUri)
         }
 
-        ProjectInfo.writeToDirectory(workDir, projectPath, gradleBuildDir)
-
+        outputHandler(OUTPUT_INFO, "> Importing project files...")
+        FileUtils.importAndroidProject(context, projectTreeUri, gradleBuildDir, workDir)
         return workDir
     }
 
-    fun cleanProject(projectPath: String, gradleBuildDir: String) {
-        val fullPath = File(projectPath, gradleBuildDir)
-        val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
-        val workDir = File(projectRoot, hash)
+    private fun fixGradleArgs(projectPath: String, rawGradleArgs: List<String>): List<String> {
+        val normalizedProjectPath = projectPath.trimEnd('/')
+        return rawGradleArgs.map { arg ->
+            when {
+                arg.startsWith("-Pdebug_keystore_file=") -> "-Pdebug_keystore_file=/project/.android/debug.keystore"
+                arg.startsWith("-Prelease_keystore_file=") -> "-Prelease_keystore_file=/project/.android/release.keystore"
+                arg.startsWith("-Paddons_directory=") -> "-Paddons_directory=/project/${FileUtils.ADDONS_DIR_NAME}"
 
+                arg.startsWith("-Pplugins_local_binaries=") -> {
+                    val prefix = "-Pplugins_local_binaries="
+                    val value = arg.removePrefix(prefix)
+                    val updated = value.replace("$normalizedProjectPath/${FileUtils.ADDONS_DIR_NAME}", "/project/${FileUtils.ADDONS_DIR_NAME}")
+                    prefix + updated
+                }
+                else -> arg
+            }
+        }
+    }
+
+    fun cleanProject(projectPath: String, gradleBuildDir: String) {
+        val workDir = Utils.getProjectCacheDir(context, projectPath, gradleBuildDir)
         if (workDir.exists()) {
             workDir.deleteRecursively()
         }
+        FileUtils.deleteProjectTreeUri(context, projectPath)
     }
 
     fun cleanGlobalCache() {
@@ -348,14 +390,14 @@ class BuildEnvironment(
         return AppPaths.getRootfsReadyFile(File(rootfs)).exists()
     }
 
-    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
+    fun executeGradle(rawGradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
         if (!isRootfsReady()) {
             outputHandler(OUTPUT_STDERR, "Rootfs isn't installed. Install it in the Godot Gradle Build Environment app.")
             return 255
         }
 
         val workDir = try {
-            setupProject(projectPath, gradleBuildDir)
+            setupProject(projectPath, gradleBuildDir, outputHandler)
         } catch (e: Exception) {
             outputHandler(OUTPUT_STDERR, "Unable to setup project: ${e.message}")
             return 255
@@ -371,12 +413,14 @@ class BuildEnvironment(
             outputHandler(type, line)
         }
 
+        val gradleArgs = fixGradleArgs(projectPath, rawGradleArgs)
+
         var result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
 
         val stderr = stderrBuilder.toString()
         if (result == 0 && stderr.contains("BUILD FAILED")) {
             // Sometimes Gradle builds fail, but it still gives an exit code of 0.
-            result = 1;
+            result = 1
         }
         stderrBuilder.clear()
 
@@ -399,7 +443,7 @@ class BuildEnvironment(
             result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
             val stderr = stderrBuilder.toString()
             if (result == 0 && stderr.contains("BUILD FAILED")) {
-                result = 1;
+                result = 1
             }
         }
 
@@ -417,4 +461,24 @@ class BuildEnvironment(
         }
     }
 
+    fun waitForDirectoryAccess(timeoutMs: Long): Uri? {
+        accessLock.withLock {
+            var remainingTimeInNanos = TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+            while (grantedTreeUri == null && remainingTimeInNanos > 0) {
+                try {
+                    remainingTimeInNanos = accessLockCondition.awaitNanos(remainingTimeInNanos)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+            }
+            return grantedTreeUri
+        }
+    }
+
+    fun onDirectoryAccessGranted(uri: Uri) {
+        accessLock.withLock {
+            grantedTreeUri = uri
+            accessLockCondition.signalAll()
+        }
+    }
 }

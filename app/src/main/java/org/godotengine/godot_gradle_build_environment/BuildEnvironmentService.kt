@@ -11,6 +11,7 @@ import android.os.Message
 import android.os.Messenger
 import android.os.RemoteException
 import android.util.Log
+import androidx.core.net.toUri
 import java.util.concurrent.LinkedBlockingQueue
 
 class BuildEnvironmentService : Service() {
@@ -26,6 +27,7 @@ class BuildEnvironmentService : Service() {
         const val MSG_CLEAN_GLOBAL_CACHE = 6
         const val MSG_INSTALL_ROOTFS = 7
         const val MSG_DELETE_ROOTFS = 8
+        const val MSG_BUILD_DIR_ACCESS_GRANTED = 9
     }
 
     private lateinit var mMessenger: Messenger
@@ -62,6 +64,12 @@ class BuildEnvironmentService : Service() {
                     MSG_CLEAN_GLOBAL_CACHE -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_INSTALL_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_DELETE_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
+                    MSG_BUILD_DIR_ACCESS_GRANTED -> {
+                        val uri = msg.data.getString(Utils.EXTRA_TREE_URI)?.toUri()
+                        if (uri != null) {
+                            mBuildEnvironment.onDirectoryAccessGranted(uri)
+                        }
+                    }
                 }
             }
         }
@@ -88,7 +96,7 @@ class BuildEnvironmentService : Service() {
             return
         }
 
-        Log.i(TAG, "Canceling command: ${id}")
+        Log.i(TAG, "Canceling command: $id")
 
         if (currentItem?.id == id && currentItem?.msg?.what == MSG_EXECUTE_GRADLE) {
             mBuildEnvironment.killCurrentProcess()
@@ -131,7 +139,7 @@ class BuildEnvironmentService : Service() {
         var result = 255
 
         if (args != null && projectPath != null && gradleBuildDir != null) {
-            result = mBuildEnvironment.executeGradle(args, projectPath, gradleBuildDir, { type, line ->
+            result = mBuildEnvironment.executeGradle(args, projectPath, gradleBuildDir) { type, line ->
                 val reply = Message.obtain(null, MSG_COMMAND_OUTPUT, id, type)
                 val replyData = Bundle()
                 replyData.putString("line", line)
@@ -142,7 +150,7 @@ class BuildEnvironmentService : Service() {
                 } catch (e: RemoteException) {
                     Log.e(TAG, "Error send command output to client: ${e.message}")
                 }
-            })
+            }
         }
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, id, result)
