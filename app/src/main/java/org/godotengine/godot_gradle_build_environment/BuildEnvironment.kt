@@ -1,9 +1,18 @@
 package org.godotengine.godot_gradle_build_environment
 
+import android.Manifest
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
@@ -35,6 +44,9 @@ class BuildEnvironment(
     }
 
     private var currentProcess: Process? = null
+
+    private val accessLock = Object()
+    @Volatile private var grantedTreeUri: Uri? = null
 
     private fun getDefaultEnv(): List<String> {
         return try {
@@ -153,38 +165,8 @@ class BuildEnvironment(
         return exitCode
     }
 
-    private fun setupProject(projectPath: String, gradleBuildDir: String): File {
-        val fullPath = File(projectPath, gradleBuildDir)
-        val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
-        val workDir = File(projectRoot, hash)
-
-        // Clean up assets from a previous export.
-        if (workDir.exists()) {
-            val apkAssetsDir = File(workDir, "src/main/assets")
-            if (apkAssetsDir.exists()) {
-                apkAssetsDir.deleteRecursively()
-            }
-
-            val aabAssetsDir = File(workDir, "assetPackInstallTime/src/main/assets")
-            if (aabAssetsDir.exists()) {
-                aabAssetsDir.deleteRecursively()
-            }
-        }
-
-        if (!FileUtils.tryCopyDirectory(fullPath, workDir)) {
-            throw IOException("Failed to copy $fullPath to $workDir")
-        }
-
-        ProjectInfo.writeToDirectory(workDir, projectPath, gradleBuildDir)
-
-        return workDir
-    }
-
-    fun cleanProject(projectPath: String, gradleBuildDir: String) {
-        val fullPath = File(projectPath, gradleBuildDir)
-        val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
-        val workDir = File(projectRoot, hash)
-
+    fun cleanProject(projectCacheDirHash: String) {
+        val workDir = File(projectRoot, projectCacheDirHash)
         if (workDir.exists()) {
             workDir.deleteRecursively()
         }
@@ -336,7 +318,7 @@ class BuildEnvironment(
             gradleCmd,
         )
         val binds = listOf(
-            Environment.getExternalStorageDirectory().absolutePath,
+            "/storage/emulated/0:/storage/emulated/0",
             "${workDir.absolutePath}:/project",
             "${gradleCache.absolutePath}:/project/?",
         )
@@ -348,14 +330,40 @@ class BuildEnvironment(
         return AppPaths.getRootfsReadyFile(File(rootfs)).exists()
     }
 
-    fun executeGradle(gradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
+    fun executeGradle(rawGradleArgs: List<String>, rawProjectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
         if (!isRootfsReady()) {
             outputHandler(OUTPUT_STDERR, "Rootfs isn't installed. Install it in the Godot Gradle Build Environment app.")
             return 255
         }
 
-        val workDir = try {
-            setupProject(projectPath, gradleBuildDir)
+        val projectTreeUri: Uri
+        val projectPath = rawProjectPath.trimEnd('/')
+
+        val hash = Integer.toHexString(projectPath.hashCode())
+        val workDir = File(projectRoot, hash)
+        if (workDir.exists()) {
+            val info = ProjectInfo.readFromDirectory(workDir)
+            if (info != null) {
+                projectTreeUri = info.projectTreeUri.toUri()
+            } else {
+                outputHandler(OUTPUT_STDERR, "Unable to setup project: could not get projectTreeUri.")
+                return 255
+            }
+        } else {
+            outputHandler(OUTPUT_STDERR, "Unable to setup project: $projectPath is not accessible. Please give GABE app access to this directory.")
+            showDirectoryAccessNotification(projectPath)
+            val uri = waitForDirectoryAccess(2 * 60 * 1000) // 2 minutes should be ideal?
+            if (uri == null) {
+                outputHandler(OUTPUT_STDERR, "Directory access not granted in time. Build canceled.")
+                return 255
+            }
+            projectTreeUri = uri
+            outputHandler(OUTPUT_STDOUT, "Access granted for $projectPath. Starting Gradle build...")
+        }
+
+        try {
+            outputHandler(OUTPUT_INFO, "> Importing project files...")
+            SafProjectImporter.importAndroidProject(context, projectTreeUri, workDir)
         } catch (e: Exception) {
             outputHandler(OUTPUT_STDERR, "Unable to setup project: ${e.message}")
             return 255
@@ -371,12 +379,32 @@ class BuildEnvironment(
             outputHandler(type, line)
         }
 
+        val gradleArgs = rawGradleArgs.map { arg ->
+            when {
+                arg.startsWith("-Pdebug_keystore_file=") -> "-Pdebug_keystore_file=/project/.android/debug.keystore"
+                arg.startsWith("-Prelease_keystore_file=") -> "-Prelease_keystore_file=/project/.android/release.keystore"
+                arg.startsWith("-Paddons_directory=") -> "-Paddons_directory=/project/addons"
+
+                arg.startsWith("-Pplugins_local_binaries=") -> {
+                    val prefix = "-Pplugins_local_binaries="
+                    val value = arg.removePrefix(prefix)
+                    val normalizeProjectPath = projectPath.trimEnd('/')
+                    val updated = value.replace(
+                        "$normalizeProjectPath/addons",
+                        "/project/addons"
+                    )
+                    prefix + updated
+                }
+                else -> arg
+            }
+        }
+
         var result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
 
         val stderr = stderrBuilder.toString()
         if (result == 0 && stderr.contains("BUILD FAILED")) {
             // Sometimes Gradle builds fail, but it still gives an exit code of 0.
-            result = 1;
+            result = 1
         }
         stderrBuilder.clear()
 
@@ -399,7 +427,7 @@ class BuildEnvironment(
             result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
             val stderr = stderrBuilder.toString()
             if (result == 0 && stderr.contains("BUILD FAILED")) {
-                result = 1;
+                result = 1
             }
         }
 
@@ -417,4 +445,123 @@ class BuildEnvironment(
         }
     }
 
+    fun waitForDirectoryAccess(timeoutMs: Long): Uri? {
+        val endTime = System.currentTimeMillis() + timeoutMs
+
+        synchronized(accessLock) {
+            while (grantedTreeUri == null) {
+                val remaining = endTime - System.currentTimeMillis()
+                if (remaining <= 0) {
+                    return null
+                }
+                accessLock.wait(remaining)
+            }
+            return grantedTreeUri
+        }
+    }
+
+    fun onDirectoryAccessGranted(uri: Uri) {
+        synchronized(accessLock) {
+            grantedTreeUri = uri
+            accessLock.notifyAll()
+        }
+    }
+
+    private fun showDirectoryAccessNotification(projectPath: String) {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+        val intent = Intent(context, MainActivity::class.java).apply {
+            action = "ACTION_REQUEST_DIRECTORY_ACCESS"
+            putExtra("projectPath", projectPath)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            1001,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, "CHANNEL_ID")
+            .setSmallIcon(R.drawable.icon_rootfs_tab)
+            .setContentTitle("Directory access required")
+            .setContentText("Tap to grant access to the project directory")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(1001, notification)
+    }
+}
+
+object SafProjectImporter {
+    fun importAndroidProject(context: Context, projectTreeUri: Uri, destDir: File) {
+        val gradleBuildDir = "android/build"
+        val root = DocumentFile.fromTreeUri(context, projectTreeUri)
+            ?: throw IOException("Invalid tree uri")
+
+        val androidDir = findDirByPath(root, gradleBuildDir)
+            ?: throw IOException("Gradle build dir not found: $gradleBuildDir")
+
+        val addonsDir = root.listFiles().firstOrNull {
+            it.isDirectory && it.name == "addons"
+        }
+
+        if (destDir.exists()) {
+            val apkAssetsDir = File(destDir, "src/main/assets")
+            if (apkAssetsDir.exists()) apkAssetsDir.deleteRecursively()
+
+            val aabAssetsDir = File(destDir, "assetPackInstallTime/src/main/assets")
+            if (aabAssetsDir.exists()) aabAssetsDir.deleteRecursively()
+        } else {
+            destDir.mkdir()
+        }
+
+        copyDirectoryMerge(context, androidDir, destDir)
+
+        if (addonsDir != null) {
+            val localAddons = File(destDir, "addons")
+            if (localAddons.exists()) {
+                localAddons.deleteRecursively()
+            }
+            localAddons.mkdirs()
+            copyDirectoryMerge(context, addonsDir, localAddons)
+        }
+    }
+
+    private fun findDirByPath(parent: DocumentFile, relativePath: String): DocumentFile? {
+        var current: DocumentFile? = parent
+
+        val parts = relativePath.trim('/').split('/')
+
+        for (part in parts) {
+            current = current?.listFiles()?.firstOrNull {
+                it.isDirectory && it.name == part
+            } ?: return null
+        }
+
+        return current
+    }
+
+    private fun copyDirectoryMerge(context: Context, src: DocumentFile, dest: File) {
+        src.listFiles().forEach { file ->
+            val name = file.name ?: return@forEach
+
+            if (file.isDirectory) {
+                val newDir = File(dest, name)
+                if (!newDir.exists()) newDir.mkdirs()
+                copyDirectoryMerge(context, file, newDir)
+            } else {
+                val outFile = File(dest, name)
+                context.contentResolver.openInputStream(file.uri).use { input ->
+                    FileOutputStream(outFile, false).use { output ->
+                        input?.copyTo(output)
+                    }
+                }
+            }
+        }
+    }
 }

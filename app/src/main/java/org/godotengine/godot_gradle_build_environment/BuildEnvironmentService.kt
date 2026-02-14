@@ -11,6 +11,7 @@ import android.os.Message
 import android.os.Messenger
 import android.os.RemoteException
 import android.util.Log
+import androidx.core.net.toUri
 import java.util.concurrent.LinkedBlockingQueue
 
 class BuildEnvironmentService : Service() {
@@ -26,6 +27,8 @@ class BuildEnvironmentService : Service() {
         const val MSG_CLEAN_GLOBAL_CACHE = 6
         const val MSG_INSTALL_ROOTFS = 7
         const val MSG_DELETE_ROOTFS = 8
+
+        const val MSG_RESUME_PENDING_BUILD = 9
     }
 
     private lateinit var mMessenger: Messenger
@@ -62,6 +65,12 @@ class BuildEnvironmentService : Service() {
                     MSG_CLEAN_GLOBAL_CACHE -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_INSTALL_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_DELETE_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
+                    MSG_RESUME_PENDING_BUILD -> {
+                        val uri = msg.data.getString("tree_uri")?.toUri()
+                        if (uri != null) {
+                            mBuildEnvironment.onDirectoryAccessGranted(uri)
+                        }
+                    }
                 }
             }
         }
@@ -155,12 +164,11 @@ class BuildEnvironmentService : Service() {
 
     private fun cleanProject(msg: Message) {
         val data = msg.data
-        val projectPath = data.getString("project_path")
-        val gradleBuildDir = data.getString("gradle_build_directory")
+        val projectCacheDirHash = data.getString("project_cache_dir_hash")
         val forceClean = data.getBoolean("force_clean", false)
 
-        if (projectPath != null && gradleBuildDir != null && (forceClean || mSettingsManager.clearCacheAfterBuild)) {
-            mBuildEnvironment.cleanProject(projectPath, gradleBuildDir)
+        if (projectCacheDirHash != null && (forceClean || mSettingsManager.clearCacheAfterBuild)) {
+            mBuildEnvironment.cleanProject(projectCacheDirHash)
         }
 
         val reply = Message.obtain(null, MSG_COMMAND_RESULT, msg.arg1, 0)
