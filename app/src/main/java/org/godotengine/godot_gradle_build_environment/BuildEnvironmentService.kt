@@ -11,6 +11,7 @@ import android.os.Message
 import android.os.Messenger
 import android.os.RemoteException
 import android.util.Log
+import androidx.core.net.toUri
 import java.util.concurrent.LinkedBlockingQueue
 
 class BuildEnvironmentService : Service() {
@@ -26,6 +27,8 @@ class BuildEnvironmentService : Service() {
         const val MSG_CLEAN_GLOBAL_CACHE = 6
         const val MSG_INSTALL_ROOTFS = 7
         const val MSG_DELETE_ROOTFS = 8
+
+        const val MSG_RESUME_PENDING_BUILD = 9
     }
 
     private lateinit var mMessenger: Messenger
@@ -62,6 +65,12 @@ class BuildEnvironmentService : Service() {
                     MSG_CLEAN_GLOBAL_CACHE -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_INSTALL_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
                     MSG_DELETE_ROOTFS -> queueWork(WorkItem(copy, msg.arg1))
+                    MSG_RESUME_PENDING_BUILD -> {
+                        val uri = msg.data.getString("tree_uri")?.toUri()
+                        if (uri != null) {
+                            mBuildEnvironment.onDirectoryAccessGranted(uri)
+                        }
+                    }
                 }
             }
         }

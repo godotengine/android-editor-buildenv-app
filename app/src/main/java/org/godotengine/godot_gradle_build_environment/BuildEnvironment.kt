@@ -45,6 +45,9 @@ class BuildEnvironment(
 
     private var currentProcess: Process? = null
 
+    private val accessLock = Object()
+    @Volatile private var grantedTreeUri: Uri? = null
+
     private fun getDefaultEnv(): List<String> {
         return try {
             File(rootfs, "env").readLines()
@@ -349,11 +352,17 @@ class BuildEnvironment(
         } else {
             outputHandler(OUTPUT_STDERR, "Unable to setup project: $projectPath is not accessible. Please give GABE app access to this directory.")
             showDirectoryAccessNotification(projectPath)
-            return 255
+            val uri = waitForDirectoryAccess(2 * 60 * 1000) // 2 minutes should be ideal?
+            if (uri == null) {
+                outputHandler(OUTPUT_STDERR, "Directory access not granted in time. Build canceled.")
+                return 255
+            }
+            projectTreeUri = uri
+            outputHandler(OUTPUT_STDOUT, "Access granted for $projectPath. Starting Gradle build...")
         }
 
         try {
-            outputHandler(OUTPUT_INFO, "> Importing project via SAF...")
+            outputHandler(OUTPUT_INFO, "> Importing project files...")
             SafProjectImporter.importAndroidProject(context, projectTreeUri, workDir)
         } catch (e: Exception) {
             outputHandler(OUTPUT_STDERR, "Unable to setup project: ${e.message}")
@@ -433,6 +442,28 @@ class BuildEnvironment(
                 process.waitFor(500, TimeUnit.MILLISECONDS)
                 process.destroyForcibly()
             }
+        }
+    }
+
+    fun waitForDirectoryAccess(timeoutMs: Long): Uri? {
+        val endTime = System.currentTimeMillis() + timeoutMs
+
+        synchronized(accessLock) {
+            while (grantedTreeUri == null) {
+                val remaining = endTime - System.currentTimeMillis()
+                if (remaining <= 0) {
+                    return null
+                }
+                accessLock.wait(remaining)
+            }
+            return grantedTreeUri
+        }
+    }
+
+    fun onDirectoryAccessGranted(uri: Uri) {
+        synchronized(accessLock) {
+            grantedTreeUri = uri
+            accessLock.notifyAll()
         }
     }
 

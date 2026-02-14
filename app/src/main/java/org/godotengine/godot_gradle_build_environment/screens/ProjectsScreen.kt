@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
@@ -12,8 +11,6 @@ import android.os.Looper
 import android.os.Message
 import android.os.Messenger
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +22,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -57,7 +53,6 @@ import org.godotengine.godot_gradle_build_environment.CachedProject
 import org.godotengine.godot_gradle_build_environment.FileUtils
 import org.godotengine.godot_gradle_build_environment.ProjectInfo
 import org.godotengine.godot_gradle_build_environment.R
-import androidx.core.content.edit
 
 @Composable
 fun ProjectsScreen(modifier: Modifier = Modifier) {
