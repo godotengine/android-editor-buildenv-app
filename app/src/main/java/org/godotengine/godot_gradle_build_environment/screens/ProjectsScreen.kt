@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -170,7 +171,7 @@ private fun deleteProject(
     try {
         serviceMessenger.send(msg)
     } catch (e: Exception) {
-        Log.e("ProjectsScreen", "Error sending delete message for project ${project.info.getProjectName()}: ${e.message}")
+        Log.e("ProjectsScreen", "Error sending delete message for project ${project.info.projectName}: ${e.message}")
     }
 }
 
@@ -221,7 +222,7 @@ private fun ProjectItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = project.info.getProjectName(),
+                    text = project.info.projectName,
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -230,6 +231,11 @@ private fun ProjectItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(
+                    text = "${stringResource(R.string.gradle_build_dir_label)}: ${project.info.gradleBuildDir}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = sizeText ?: "Calculating...",
