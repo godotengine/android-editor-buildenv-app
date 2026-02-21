@@ -30,6 +30,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".DirectoryAccessActivity"
+            android:exported="false">
+        </activity>
         <service
             android:name=".BuildEnvironmentService"
             android:label="Godot Gradle Build Environment Service"

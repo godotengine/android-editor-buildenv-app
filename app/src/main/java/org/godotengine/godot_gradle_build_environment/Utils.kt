@@ -38,7 +38,7 @@ object Utils {
 
 	@RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
 	fun showDirectoryAccessNotification(context: Context, projectPath: String) {
-		val intent = Intent(context, MainActivity::class.java).apply {
+		val intent = Intent(context, DirectoryAccessActivity::class.java).apply {
 			action = ACTION_REQUEST_DIRECTORY_ACCESS
 			putExtra(EXTRA_PROJECT_PATH, projectPath)
 			flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
