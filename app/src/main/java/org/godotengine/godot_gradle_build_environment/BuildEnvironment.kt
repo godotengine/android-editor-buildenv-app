@@ -17,11 +17,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-class BuildEnvironment(
-    private val context: Context,
-    private val rootfs: String,
-    private val projectRoot: String,
-) {
+class BuildEnvironment(private val context: Context, private val rootfs: String, private val projectRoot: String) {
 
     companion object {
         private val TAG = BuildEnvironment::class.java.simpleName
@@ -143,14 +139,14 @@ class BuildEnvironment(
             environment().putAll(env)
         }.start()
 
-        val stdoutThread = logAndCaptureStream(BufferedReader(InputStreamReader(currentProcess?.inputStream)), { line ->
+        val stdoutThread = logAndCaptureStream(BufferedReader(InputStreamReader(currentProcess?.inputStream))) { line ->
             Log.i(STDOUT_TAG, line)
             outputHandler(OUTPUT_STDOUT, line)
-        })
-        val stderrThread = logAndCaptureStream(BufferedReader(InputStreamReader(currentProcess?.errorStream)), { line ->
+        }
+        val stderrThread = logAndCaptureStream(BufferedReader(InputStreamReader(currentProcess?.errorStream))) { line ->
             Log.i(STDERR_TAG, line)
             outputHandler(OUTPUT_STDERR, line)
-        })
+        }
 
         stdoutThread.start()
         stderrThread.start()
@@ -168,13 +164,20 @@ class BuildEnvironment(
     private fun setupProject(projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): File {
         var projectTreeUri = FileUtils.getProjectTreeUri(context, projectPath)
         if (projectTreeUri == null) {
-            if (checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                outputHandler(OUTPUT_STDERR, "Project path \"$projectPath\" is not accessible. " +
-                        "Click on the build notification and give ${context.getString(R.string.app_launcher_name)} app access to the project directory.")
+            val notificationPerm = checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            if (notificationPerm == PackageManager.PERMISSION_GRANTED) {
+                outputHandler(
+                    OUTPUT_STDERR, "Project path \"$projectPath\" is not accessible. " +
+                        "Click on the build notification and give " +
+                        "${context.getString(R.string.app_launcher_name)} app access to the project directory."
+                )
                 Utils.showDirectoryAccessNotification(context, projectPath)
             } else {
-                throw SecurityException("POST_NOTIFICATIONS permission not granted. " +
-                        "Please grant POST_NOTIFICATIONS permission for ${context.getString(R.string.app_launcher_name)} app and retry.")
+                throw SecurityException(
+                    "POST_NOTIFICATIONS permission not granted. " +
+                        "Please grant POST_NOTIFICATIONS permission for " +
+                        "${context.getString(R.string.app_launcher_name)} app and retry."
+                )
             }
 
             projectTreeUri = waitForDirectoryAccess(DIR_ACCESS_WAIT_DURATION)
@@ -186,8 +189,11 @@ class BuildEnvironment(
             val persistedCount = context.contentResolver.persistedUriPermissions.size
             val limit = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) 128 else 512
             if (persistedCount == limit) {
-                outputHandler(OUTPUT_INFO, "Warning: Persisted directory access limit reached." +
-                        "This build will continue, but new projects would require clearing older ones in ${context.getString(R.string.app_launcher_name)} app")
+                outputHandler(
+                    OUTPUT_INFO, "Warning: Persisted directory access limit reached." +
+                        "This build will continue, but new projects would require " +
+                        "clearing older ones in ${context.getString(R.string.app_launcher_name)} app"
+                )
             }
         }
 
@@ -213,9 +219,13 @@ class BuildEnvironment(
                 arg.startsWith("-Pplugins_local_binaries=") -> {
                     val prefix = "-Pplugins_local_binaries="
                     val value = arg.removePrefix(prefix)
-                    val updated = value.replace("$normalizedProjectPath/${FileUtils.ADDONS_DIR_NAME}", "/project/${FileUtils.ADDONS_DIR_NAME}")
+                    val updated = value.replace(
+                        "$normalizedProjectPath/${FileUtils.ADDONS_DIR_NAME}",
+                        "/project/${FileUtils.ADDONS_DIR_NAME}"
+                    )
                     prefix + updated
                 }
+
                 else -> arg
             }
         }
@@ -363,7 +373,7 @@ class BuildEnvironment(
 
         val gradleCmd = buildString {
             append("bash gradlew ")
-            append(gradleArgs.joinToString(" ") { "\"$it\""})
+            append(gradleArgs.joinToString(" ") { "\"$it\"" })
             if ("--no-daemon" !in gradleArgs) {
                 append(" --no-daemon")
             }
@@ -387,7 +397,12 @@ class BuildEnvironment(
         return AppPaths.getRootfsReadyFile(File(rootfs)).exists()
     }
 
-    fun executeGradle(rawGradleArgs: List<String>, projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): Int {
+    fun executeGradle(
+        rawGradleArgs: List<String>,
+        projectPath: String,
+        gradleBuildDir: String,
+        outputHandler: (Int, String) -> Unit
+    ): Int {
         if (!isRootfsReady()) {
             outputHandler(OUTPUT_STDERR, "Rootfs isn't installed. Install it in the Godot Gradle Build Environment app.")
             return 255
@@ -428,7 +443,7 @@ class BuildEnvironment(
             // Patch AAPT2 JARs in both the project directory and the global gradle cache
             val gradleCache = AppPaths.getGlobalGradleCache(context)
             val patchSuccess = patchAapt2Jars(workDir, "/project", outputHandler) &&
-                               patchAapt2Jars(gradleCache, "/project/?", outputHandler)
+                patchAapt2Jars(gradleCache, "/project/?", outputHandler)
 
             if (!patchSuccess) {
                 // If patching failed, there's not much else we can do.

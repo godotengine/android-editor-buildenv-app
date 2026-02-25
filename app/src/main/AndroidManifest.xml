@@ -32,8 +32,8 @@
         </activity>
         <activity
             android:name=".DirectoryAccessActivity"
-            android:exported="false">
-        </activity>
+            android:exported="false" />
+
         <service
             android:name=".BuildEnvironmentService"
             android:label="Godot Gradle Build Environment Service"

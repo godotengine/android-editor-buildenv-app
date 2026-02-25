@@ -20,7 +20,6 @@ object FileUtils {
 
     private val TAG = FileUtils::class.java.simpleName
     private const val PREF_NAME = "tree_uri_prefs"
-
     const val ADDONS_DIR_NAME = "addons"
 
     fun tryCopyFile(source: File, dest: File): Boolean {

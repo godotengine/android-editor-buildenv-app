@@ -70,12 +70,14 @@ fun MainScreen(
             AppTab.PROJECTS -> ProjectsScreen(
                 modifier = Modifier.padding(innerPadding)
             )
+
             AppTab.ROOTFS -> RootfsScreen(
                 context = context,
                 rootfs = rootfs,
                 rootfsReadyFile = rootfsReadyFile,
                 modifier = Modifier.padding(innerPadding)
             )
+
             AppTab.SETTINGS -> SettingsScreen(
                 context = context,
                 settingsManager = settingsManager,
