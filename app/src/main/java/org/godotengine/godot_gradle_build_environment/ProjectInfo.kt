@@ -22,7 +22,13 @@ data class ProjectInfo(
             ignoreUnknownKeys = true
         }
 
-        fun writeToDirectory(context: Context, directory: File, projectPath: String, gradleBuildDir: String, projectTreeUri: Uri) {
+        fun writeToDirectory(
+            context: Context,
+            directory: File,
+            projectPath: String,
+            gradleBuildDir: String,
+            projectTreeUri: Uri
+        ) {
             val name = DocumentFile.fromTreeUri(context, projectTreeUri)?.name ?: "Unknown Project"
             val projectInfo = ProjectInfo(projectPath, gradleBuildDir, projectTreeUri.toString(), name)
             val jsonString = json.encodeToString(projectInfo)

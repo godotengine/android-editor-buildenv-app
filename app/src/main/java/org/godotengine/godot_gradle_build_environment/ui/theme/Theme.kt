@@ -1,6 +1,5 @@
 package org.godotengine.godot_gradle_build_environment.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

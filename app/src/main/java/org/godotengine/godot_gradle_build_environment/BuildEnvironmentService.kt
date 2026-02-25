@@ -38,11 +38,12 @@ class BuildEnvironmentService : Service() {
             AppPaths.getProjectDir(applicationContext).absolutePath
         )
     }
-    private val mSettingsManager: SettingsManager by lazy { SettingsManager(applicationContext)}
+    private val mSettingsManager: SettingsManager by lazy { SettingsManager(applicationContext) }
     private val mWorkThread = HandlerThread("BuildEnvironmentServiceWorker")
     private val mWorkHandler: Handler by lazy { Handler(mWorkThread.looper) }
 
     internal data class WorkItem(val msg: Message, val id: Int)
+
     private val queue = LinkedBlockingQueue<WorkItem>()
     private var currentItem: WorkItem? = null
 
