@@ -51,6 +51,19 @@ android {
         }
     }
 
+    flavorDimensions = ["android_distribution"]
+    productFlavors {
+        android {
+            dimension "android_distribution"
+            getIsDefault().set(true)
+        }
+        horizonos {
+            dimension "android_distribution"
+            applicationIdSuffix ".horizonos"
+            versionNameSuffix "-horizonos"
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

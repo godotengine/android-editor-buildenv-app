@@ -48,14 +48,15 @@ jobs:
           GABE_RELEASE_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           GABE_RELEASE_KEY_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
         run: |
-          ./gradlew assembleRelease bundleRelease
+          ./gradlew assembleRelease bundleAndroidRelease
 
       - name: Upload debug artifacts
         uses: actions/upload-artifact@v4
         with:
           name: debug-artifacts
           path: |
-            app/build/outputs/apk/debug/
+            app/build/outputs/apk/android/debug/
+            app/build/outputs/apk/horizonos/debug/
 
       - name: Upload release artifacts
         if: github.ref == 'refs/heads/main'
@@ -63,5 +64,6 @@ jobs:
         with:
           name: release-artifacts
           path: |
-            app/build/outputs/apk/release/
-            app/build/outputs/bundle/release/
+            app/build/outputs/apk/android/release/
+            app/build/outputs/apk/horizonos/release/
+            app/build/outputs/bundle/androidRelease/
