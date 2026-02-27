@@ -23,7 +23,8 @@ jobs:
 
       - name: Build proot
         run: |
-          thirdparty/proot/build.sh
+          TARGET_ARCH=arm64-v8a TARGET_PREFIX=aarch64 thirdparty/proot/build.sh
+          TARGET_ARCH=x86_64    TARGET_PREFIX=x86_64  thirdparty/proot/build.sh
 
       - name: Set up JDK
         uses: actions/setup-java@v4
