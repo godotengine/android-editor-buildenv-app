@@ -36,6 +36,14 @@ data class ProjectInfo(
             file.writeText(jsonString)
         }
 
+        fun writeToDirectoryXR(directory: File, projectPath: String, gradleBuildDir: String) {
+            val name = File(projectPath).name
+            val projectInfo = ProjectInfo(projectPath, gradleBuildDir, "", name)
+            val jsonString = json.encodeToString(projectInfo)
+            val file = File(directory, PROJECT_INFO_FILENAME)
+            file.writeText(jsonString)
+        }
+
         fun readFromDirectory(directory: File): ProjectInfo? {
             val file = File(directory, PROJECT_INFO_FILENAME)
             return if (file.exists()) {

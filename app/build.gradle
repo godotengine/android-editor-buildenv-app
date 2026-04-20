@@ -59,8 +59,11 @@ android {
         }
         horizonos {
             dimension "android_distribution"
-            applicationIdSuffix ".horizonos"
             versionNameSuffix "-horizonos"
+        }
+        picoos {
+            dimension "android_distribution"
+            versionNameSuffix "-picoos"
         }
     }
 

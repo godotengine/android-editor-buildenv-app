@@ -162,6 +162,30 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
     }
 
     private fun setupProject(projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): File {
+        val workDir = Utils.getProjectCacheDir(context, projectPath, gradleBuildDir)
+
+        if (BuildConfig.FLAVOR == "picoos" || BuildConfig.FLAVOR == "horizonos") {
+            val sourceDir = File(projectPath, gradleBuildDir)
+
+            if (workDir.exists()) {
+                val apkAssetsDir = File(workDir, "src/main/assets")
+                if (apkAssetsDir.exists()) apkAssetsDir.deleteRecursively()
+
+                val aabAssetsDir = File(workDir, "assetPackInstallTime/src/main/assets")
+                if (aabAssetsDir.exists()) aabAssetsDir.deleteRecursively()
+            } else {
+                workDir.mkdirs()
+            }
+
+            outputHandler(OUTPUT_INFO, "> Importing project files...")
+            if (!FileUtils.tryCopyDirectory(sourceDir, workDir)) {
+                throw IOException("Failed to copy $sourceDir to $workDir")
+            }
+
+            ProjectInfo.writeToDirectoryXR(workDir, projectPath, gradleBuildDir)
+            return workDir
+        }
+
         var projectTreeUri = FileUtils.getProjectTreeUri(context, projectPath)
         if (projectTreeUri == null) {
             val notificationPerm = checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
@@ -182,7 +206,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
 
             projectTreeUri = waitForDirectoryAccess(DIR_ACCESS_WAIT_DURATION)
                 ?: throw Exception("Directory access not granted in time. Build canceled.")
-            outputHandler(OUTPUT_INFO, "Access granted for $projectPath. Starting Gradle build...")
+            outputHandler(OUTPUT_INFO, "Access granted for $projectPath.\nStarting Gradle build...")
             FileUtils.saveProjectTreeUri(context, projectPath, projectTreeUri)
 
             // Notify user if limit is reached so they can clear older projects.
@@ -197,7 +221,6 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             }
         }
 
-        val workDir = Utils.getProjectCacheDir(context, projectPath, gradleBuildDir)
         if (!workDir.exists()) {
             workDir.mkdirs()
             ProjectInfo.writeToDirectory(context, workDir, projectPath, gradleBuildDir, projectTreeUri)
@@ -425,7 +448,12 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             outputHandler(type, line)
         }
 
-        val gradleArgs = fixGradleArgs(projectPath, rawGradleArgs)
+        val gradleArgs =  if (BuildConfig.FLAVOR == "picoos" || BuildConfig.FLAVOR == "horizonos") {
+            // GABE has full storage access on XR devices, so we are not pulling addons dir, or keystore files.
+            rawGradleArgs
+        } else {
+            fixGradleArgs(projectPath, rawGradleArgs)
+        }
 
         var result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
 

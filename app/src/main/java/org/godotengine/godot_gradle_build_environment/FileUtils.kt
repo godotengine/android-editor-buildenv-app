@@ -22,9 +22,23 @@ object FileUtils {
     private const val PREF_NAME = "tree_uri_prefs"
     const val ADDONS_DIR_NAME = "addons"
 
+    fun tryCopyDirectory(sourceDir: File, destDir: File): Boolean {
+        if (!sourceDir.isDirectory) {
+            Log.e(TAG, "Source directory ${sourceDir.absolutePath} not found")
+            return false
+        }
+        try {
+            sourceDir.copyRecursively(destDir, overwrite = true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy: ${e.message}")
+            return false
+        }
+        return true
+    }
+
     fun tryCopyFile(source: File, dest: File): Boolean {
         try {
-            source.copyTo(dest)
+            source.copyTo(dest, overwrite = true)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to copy ${source.absolutePath} to ${dest.absolutePath}: ${e.message}", e)
             return false
