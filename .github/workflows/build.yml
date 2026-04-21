@@ -57,6 +57,7 @@ jobs:
           path: |
             app/build/outputs/apk/android/debug/
             app/build/outputs/apk/horizonos/debug/
+            app/build/outputs/apk/picoos/debug/
 
       - name: Upload release artifacts
         if: github.ref == 'refs/heads/main'
@@ -66,4 +67,5 @@ jobs:
           path: |
             app/build/outputs/apk/android/release/
             app/build/outputs/apk/horizonos/release/
+            app/build/outputs/apk/picoos/release/
             app/build/outputs/bundle/androidRelease/
