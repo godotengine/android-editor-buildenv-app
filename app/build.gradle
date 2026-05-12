@@ -27,6 +27,10 @@ android {
         versionCode = 3
         versionName = "0.3"
 
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
