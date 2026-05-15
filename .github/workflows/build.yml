@@ -18,12 +18,16 @@ jobs:
 
       - name: Set up Android NDK
         uses: nttld/setup-ndk@v1
+        id: setup-ndk
         with:
           ndk-version: r29
+          add-to-path: false
 
       - name: Build proot
         run: |
           thirdparty/proot/build.sh
+        env:
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Set up JDK
         uses: actions/setup-java@v4
