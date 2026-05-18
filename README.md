@@ -1,5 +1,5 @@
 Godot Android Build Environment (GABE)
-==========================================
+======================================
 
 The Godot Android Build Environment is a companion app for the
 [Godot Android Editor](https://play.google.com/store/apps/details?id=org.godotengine.editor.v4) that provides a
@@ -11,11 +11,9 @@ set up a build environment able to perform the Gradle builds.
 
 ## Getting the app
 
-<!--
 The app can be installed from the
 [Google Play Store](https://play.google.com/store/apps/details?id=org.godotengine.godot_gradle_build_environment)
-and from the [Meta Horizon Store]().
--->
+and from the [Meta Horizon Store](https://www.meta.com/experiences/gabe/26529365196759917/).
 
 Apk binaries can be downloaded directly from the
 [releases page](https://github.com/godotengine/android-editor-buildenv-app/releases). **Make sure** to select the
