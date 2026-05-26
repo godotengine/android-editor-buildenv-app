@@ -177,6 +177,18 @@ object FileUtils {
         prefs.edit { remove(projectPath) }
     }
 
+    /**
+     * Check whether we have persisted the given project tree uri.
+     */
+    fun isProjectTreeUriPersisted(context: Context, projectTreeUri: Uri): Boolean {
+        for (uriPermission in context.contentResolver.persistedUriPermissions) {
+            if (uriPermission.uri == projectTreeUri) {
+                return true
+            }
+        }
+        return false
+    }
+
     fun getProjectTreeUri(context: Context, projectPath: String): Uri? {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val uriString = prefs.getString(projectPath, null)

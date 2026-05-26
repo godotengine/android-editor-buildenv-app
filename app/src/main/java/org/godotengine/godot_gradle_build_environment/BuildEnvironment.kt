@@ -14,6 +14,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStreamReader
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -42,7 +43,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
 
     private val accessLock = ReentrantLock()
     private val accessLockCondition = accessLock.newCondition()
-    @Volatile private var grantedTreeUri: Uri? = null
+    private val grantedTreeUri = AtomicReference<Uri>()
 
     private fun getDefaultEnv(): List<String> {
         return try {
@@ -187,7 +188,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
         }
 
         var projectTreeUri = FileUtils.getProjectTreeUri(context, projectPath)
-        if (projectTreeUri == null) {
+        if (projectTreeUri == null || !FileUtils.isProjectTreeUriPersisted(context, projectTreeUri)) {
             val notificationPerm = checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
             if (notificationPerm == PackageManager.PERMISSION_GRANTED) {
                 outputHandler(
@@ -504,20 +505,22 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
     fun waitForDirectoryAccess(timeoutMs: Long): Uri? {
         accessLock.withLock {
             var remainingTimeInNanos = TimeUnit.MILLISECONDS.toNanos(timeoutMs)
-            while (grantedTreeUri == null && remainingTimeInNanos > 0) {
+            while (grantedTreeUri.get() == null && remainingTimeInNanos > 0) {
                 try {
                     remainingTimeInNanos = accessLockCondition.awaitNanos(remainingTimeInNanos)
                 } catch (_: InterruptedException) {
                     Thread.currentThread().interrupt()
                 }
             }
-            return grantedTreeUri
+            // We reset the value to `null` after returning it to avoid returning a previous value when this method is
+            // invoked again.
+            return grantedTreeUri.getAndSet(null)
         }
     }
 
     fun onDirectoryAccessGranted(uri: Uri) {
         accessLock.withLock {
-            grantedTreeUri = uri
+            grantedTreeUri.set(uri)
             accessLockCondition.signalAll()
         }
     }
