@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">गोडोट Android बिल्ड एनवायरनमेंट</string>
+    <string name="app_launcher_name">GABE</string>
+    <string name="install_rootfs_button">Rootfs इंस्टॉल करें</string>
+    <string name="delete_rootfs_button">Rootfs डिलीट करें</string>
+    <string name="installing_rootfs_message">Rootfs इंंस्टॉल हो रहा है...\nइसमें कई मिनट लग सकते हैं।</string>
+    <string name="deleting_rootfs_message">Rootfs हटाया जा रहा है...</string>
+    <string name="missing_rootfs_message">rootfs यह इंस्टॉल नहीं है!\nजब तक आप इसे इंस्टॉल नहीं करते, तब तक आप Gradle बिल्ड नहीं कर पाएंगे।</string>
+    <string name="rootfs_ready_message">लगता है कि Rootfs इंस्टॉल हो गया है!</string>
+    <string name="gradle_build_dir_label">Gradle बिल्ड डायरेक्टरी</string>
+    <string name="notification_perm_request_title">नोटिफ़िकेशन की अनुमति ज़रूरी है</string>
+    <string name="notification_perm_request_message">जब Gradle बिल्ड शुरू होता है, तो आपके प्रोजेक्ट डायरेक्टरी का एक्सेस मांगने के लिए GABE को नोटिफ़िकेशन की अनुमति चाहिए होती है। इसके बिना, बिल्ड आगे नहीं बढ़ सकते।</string>
+    <string name="perm_request_positive_btn">अनुमति दें</string>
+    <string name="perm_request_negative_btn">अभी नहीं</string>
+    <string name="dir_access_notification_channel_name">प्रोजेक्ट एक्सेस</string>
+    <string name="dir_access_notification_channel_description">प्रोजेक्ट डायरेक्टरी तक पहुँचने का अनुरोध</string>
+    <string name="dir_access_notification_title">डायरेक्टरी एक्सेस ज़रूरी है</string>
+    <string name="dir_access_notification_message">प्रोजेक्ट डायरेक्टरी का एक्सेस देने के लिए टैप करें</string>
+</resources>
