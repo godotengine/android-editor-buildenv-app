@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -138,7 +139,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.Top,
     ) {
         Text(
-            text = "Settings",
+            text = stringResource(R.string.tab_settings),
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 24.dp)
         )
@@ -151,9 +152,11 @@ fun SettingsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Clear project cache when build is finished",
+                text = stringResource(R.string.clear_project_cache_setting),
                 style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.weight(1f).padding(end = 16.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp)
             )
             Switch(
                 checked = clearCacheAfterBuild,
@@ -176,7 +179,7 @@ fun SettingsScreen(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "Global Gradle Cache",
+                    text = stringResource(R.string.global_gradle_cache),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -223,7 +226,7 @@ fun SettingsScreen(
                                     containerColor = MaterialTheme.colorScheme.error
                                 )
                             ) {
-                                Text("Delete Cache")
+                                Text(stringResource(R.string.delete_cache))
                             }
                         }
                     }

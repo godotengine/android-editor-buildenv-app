@@ -16,4 +16,17 @@
     <string name="dir_access_notification_channel_description">Requests access to the project directory</string>
     <string name="dir_access_notification_title">Directory access required</string>
     <string name="dir_access_notification_message">Tap to grant access to the project directory</string>
+    <string name="clear_project_cache_setting">Clear project cache when build is finished</string>
+    <string name="delete_cache">Delete Cache</string>
+    <string name="project_caches">Project Caches</string>
+    <string name="no_project_cache_label">No project caches</string>
+    <string name="refresh_project_dir_size">Refresh size</string>
+    <string name="delete_project_cache">Delete project cache</string>
+    <string name="update_available">Update Available</string>
+    <string name="rootfs_update_is_available_text">A newer rootfs version is available (%1$s). Current version: %2$s</string>
+    <string name="rootfs_update_instruction_text">To update, delete the rootfs and reinstall it.</string>
+    <string name="global_gradle_cache">Global Gradle Cache</string>
+    <string name="tab_projects">Projects</string>
+    <string name="tab_rootfs">Rootfs</string>
+    <string name="tab_settings">Settings</string>
 </resources>

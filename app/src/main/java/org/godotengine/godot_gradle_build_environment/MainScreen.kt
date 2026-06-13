@@ -2,6 +2,7 @@ package org.godotengine.godot_gradle_build_environment
 
 import android.content.Context
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -26,12 +27,12 @@ import org.godotengine.godot_gradle_build_environment.screens.SettingsScreen
 import java.io.File
 
 enum class AppTab(
-    val label: String,
+    @StringRes val labelRes: Int,
     @DrawableRes val icon: Int
 ) {
-    PROJECTS("Projects", R.drawable.icon_projects_tab),
-    ROOTFS("Rootfs", R.drawable.icon_rootfs_tab),
-    SETTINGS("Settings", R.drawable.icon_settings),
+    PROJECTS(R.string.tab_projects, R.drawable.icon_projects_tab),
+    ROOTFS(R.string.tab_rootfs, R.drawable.icon_rootfs_tab),
+    SETTINGS(R.string.tab_settings, R.drawable.icon_settings),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,9 +57,10 @@ fun MainScreen(
         bottomBar = {
             NavigationBar {
                 AppTab.entries.forEach { tab ->
+                    val label = stringResource(id = tab.labelRes)
                     NavigationBarItem(
-                        icon = { Icon(ImageVector.vectorResource(tab.icon), contentDescription = tab.label) },
-                        label = { Text(tab.label) },
+                        icon = { Icon(ImageVector.vectorResource(tab.icon), contentDescription = label) },
+                        label = { Text(label) },
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab }
                     )

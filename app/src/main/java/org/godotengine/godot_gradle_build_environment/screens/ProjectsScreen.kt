@@ -104,7 +104,7 @@ fun ProjectsScreen(modifier: Modifier = Modifier) {
             .padding(16.dp),
     ) {
         Text(
-            text = "Project Caches",
+            text = stringResource(R.string.project_caches),
             style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -116,7 +116,7 @@ fun ProjectsScreen(modifier: Modifier = Modifier) {
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = "No project caches",
+                    text = stringResource(R.string.no_project_cache_label),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -260,7 +260,7 @@ private fun ProjectItem(
                     IconButton(onClick = onRefresh) {
                         Icon(
                             imageVector = ImageVector.vectorResource(R.drawable.icon_refresh),
-                            contentDescription = "Refresh size",
+                            contentDescription = stringResource(R.string.refresh_project_dir_size),
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -275,7 +275,7 @@ private fun ProjectItem(
                     IconButton(onClick = onDelete) {
                         Icon(
                             imageVector = ImageVector.vectorResource(R.drawable.icon_delete),
-                            contentDescription = "Delete project cache",
+                            contentDescription = stringResource(R.string.delete_project_cache),
                             tint = MaterialTheme.colorScheme.error
                         )
                     }

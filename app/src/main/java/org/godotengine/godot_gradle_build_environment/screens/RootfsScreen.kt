@@ -104,19 +104,19 @@ fun RootfsScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Update Available",
+                        text = stringResource(R.string.update_available),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "A newer rootfs version is available ($updateAvailable). Current version: $currentVersion",
+                        text = stringResource(R.string.rootfs_update_is_available_text, updateAvailable, currentVersion),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "To update, delete the rootfs and reinstall it.",
+                        text = stringResource(R.string.rootfs_update_instruction_text),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
