@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">गोडोट Android बिल्ड एनवायरनमेंट</string>
+    <string name="app_name">"Godot Android Build Environment "</string>
     <string name="app_launcher_name">GABE</string>
     <string name="install_rootfs_button">Rootfs इंस्टॉल करें</string>
     <string name="delete_rootfs_button">Rootfs डिलीट करें</string>
