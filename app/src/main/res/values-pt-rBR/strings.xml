@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Godot Android Build Environment</string>
+    <string name="app_launcher_name">GABE</string>
+    <string name="install_rootfs_button">Instalar Rootfs</string>
+    <string name="delete_rootfs_button">Remover Rootfs</string>
+    <string name="installing_rootfs_message">Instalando rootfs...\nIsto pode levar vários minutos.</string>
+    <string name="deleting_rootfs_message">Removendo rootfs...</string>
+    <string name="missing_rootfs_message">O rootfs não está instalado!\nVocê não poderá utiliar o Gradle enquanto não instalá-lo.</string>
+    <string name="rootfs_ready_message">O Rootfs parece estar instalado!</string>
+    <string name="gradle_build_dir_label">Diretório para os builds Gradle</string>
+    <string name="notification_perm_request_title">Notification permission required</string>
+    <string name="notification_perm_request_message">GABE precisa das permissões para notificações para poder solicitar acesso ao diretório do seu projeto no momento de compilar com Gradle. Sem esta permissão, a execução não será possível.</string>
+    <string name="perm_request_positive_btn">Permitir</string>
+    <string name="perm_request_negative_btn">Depois</string>
+    <string name="dir_access_notification_channel_name">Acesso Para Projeto</string>
+    <string name="dir_access_notification_channel_description">Solicita acesso ao diretório do projeto</string>
+    <string name="dir_access_notification_title">Acesso ao diretório é necessário</string>
+    <string name="dir_access_notification_message">Toque para permitir acesso ao diretório do projeto</string>
+    <string name="clear_project_cache_setting">Limpar o cache do projeto ao concluir a compilação</string>
+    <string name="delete_cache">Limpar Cache</string>
+    <string name="project_caches">Caches de Projeto</string>
+    <string name="no_project_cache_label">Nenhum cache de projeto</string>
+    <string name="refresh_project_dir_size">Atualizar tamanho</string>
+    <string name="delete_project_cache">Remover cache de projeto</string>
+    <string name="update_available">Atualização Disponível</string>
+    <string name="rootfs_update_is_available_text">Uma nova versão do rootfs está disponível (%1$s). Versão atual: %2$s</string>
+    <string name="rootfs_update_instruction_text">Para atualizar, remova o rootfs e instale novamente.</string>
+    <string name="global_gradle_cache">Cache global do Gradle</string>
+    <string name="tab_projects">Projetos</string>
+    <string name="tab_rootfs">Rootfs</string>
+    <string name="tab_settings">Configurações</string>
+</resources>
