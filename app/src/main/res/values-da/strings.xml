@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Godot Android Build Environment</string>
+    <string name="app_launcher_name">GABE</string>
+    <string name="install_rootfs_button">Installer Rootfs</string>
+    <string name="delete_rootfs_button">Slet Rootfs</string>
+    <string name="installing_rootfs_message">installerer rootfs...\nDette kan tage flere minutter.</string>
+    <string name="deleting_rootfs_message">Sletter rootfs...</string>
+    <string name="missing_rootfs_message">Rootfs er ikke installeret!\nDu vil ikke kunne udføre Gradle builds indtil du installerer det.</string>
+    <string name="rootfs_ready_message">Rootfs virker til at være installeret!</string>
+    <string name="gradle_build_dir_label">Gradle Build Mappe</string>
+    <string name="notification_perm_request_title">Notifikations tilladelse påkrævet</string>
+    <string name="notification_perm_request_message">GABE har brug for notifikations tilladelse for at bede om adgang til din projekt mappe når et gradle build er started. Den kan ikke bygge dit projet uden.</string>
+    <string name="perm_request_positive_btn">Tillad</string>
+    <string name="perm_request_negative_btn">Ikke nu</string>
+    <string name="dir_access_notification_channel_name">Projekt Adgang</string>
+    <string name="dir_access_notification_channel_description">Anmoder om adgang til projektmappen</string>
+    <string name="dir_access_notification_title">Mappe adgang påkrævet</string>
+    <string name="dir_access_notification_message">Klik for at give adgang til dit projekts mappe</string>
+    <string name="clear_project_cache_setting">Ryd projektets cache, når byggeprocessen er færdig</string>
+    <string name="delete_cache">Slet Cache</string>
+    <string name="project_caches">Projekt Caches</string>
+    <string name="no_project_cache_label">Ingen projekt caches</string>
+    <string name="refresh_project_dir_size">Opdater size</string>
+    <string name="delete_project_cache">Sleet projekt cache</string>
+    <string name="update_available">Opdatering tilgængelig</string>
+    <string name="rootfs_update_is_available_text">En nyere rootfs version er tilgængelig (%1$s). Nuværende version: %2$s</string>
+    <string name="rootfs_update_instruction_text">For at opdatere, slet din rootfs og geninstaller det.</string>
+    <string name="global_gradle_cache">Global Gradle Cache</string>
+    <string name="tab_projects">Projektter</string>
+    <string name="tab_rootfs">Rootfs</string>
+    <string name="tab_settings">Indstillinger</string>
+</resources>
