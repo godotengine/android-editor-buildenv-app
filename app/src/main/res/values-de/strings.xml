@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">Godot Android Build Environment</string>
+    <string name="app_launcher_name">GABE</string>
+    <string name="install_rootfs_button">Installiere Rootfs</string>
+    <string name="delete_rootfs_button">Lösche Rootfs</string>
+    <string name="installing_rootfs_message">Installiere rootfs...\nDies kann einige Minuten dauern</string>
+    <string name="deleting_rootfs_message">Rootfs wird gelöscht...</string>
+    <string name="missing_rootfs_message">Rootfs ist nicht installiert!\nDu kannst keine Gradle Builds ausführen, bis du es installiert hast.</string>
+    <string name="rootfs_ready_message">Rootfs scheint installiert zu sein!</string>
+    <string name="gradle_build_dir_label">Gradle Build Ordner</string>
+    <string name="notification_perm_request_title">Benachrichtigungsberechtigung erforderlich</string>
+    <string name="notification_perm_request_message">GABE benötigt die Berechtigung Benachrichtigungen zu schicken, um Zugriff auf deinen Projektordner zu erfragen. Ohne diese Berechtigung können Builds nicht fortfahren.</string>
+    <string name="perm_request_positive_btn">Erlauben</string>
+    <string name="perm_request_negative_btn">Nicht jetzt</string>
+    <string name="dir_access_notification_channel_name">Projektzugriff</string>
+    <string name="dir_access_notification_channel_description">Erfragt Zugriff auf den Projektordner</string>
+    <string name="dir_access_notification_title">Ordner Zugriff ist erforderlich</string>
+    <string name="dir_access_notification_message">Tippe, um Zugriff auf den Projektordner zu gewähren</string>
+</resources>
