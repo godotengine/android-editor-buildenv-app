@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Godot Android Build Environment</string>
+    <string name="app_launcher_name">GABE</string>
+    <string name="install_rootfs_button">Installeer Rootfs</string>
+    <string name="delete_rootfs_button">Verwijder Rootfs</string>
+    <string name="installing_rootfs_message">Rootfs aan het installeren...\nDit kan enkele minuten duren.</string>
+    <string name="deleting_rootfs_message">Rootfs aan het verwijderen...</string>
+    <string name="missing_rootfs_message">Rootfs zijn niet geïnstalleerd!\nJe kan jouw app niet met Grade bouwen totdat je de rootfs installeert.</string>
+    <string name="rootfs_ready_message">Rootfs lijken geïnstalleerd te zijn!</string>
+    <string name="gradle_build_dir_label">Gradle Bouwfolder</string>
+    <string name="notification_perm_request_title">Toestemming voor notificaties nodig</string>
+    <string name="notification_perm_request_message">GABE heeft toestemming voor notificaties nodig om toegang te krijgen naar je projectfolder wanneer een Gradle export start. Zonder toestemming kan het exporteren niet doorgaan.</string>
+    <string name="perm_request_positive_btn">Allow</string>
+    <string name="perm_request_negative_btn">Not now</string>
+    <string name="dir_access_notification_channel_name">Project Toegang</string>
+    <string name="dir_access_notification_channel_description">Verzoek toegang tot je projectfolder</string>
+    <string name="dir_access_notification_title">Toegang tot folder vereist</string>
+    <string name="dir_access_notification_message">Tap om toegang te krijgen tot je projectfolder</string>
+    <string name="clear_project_cache_setting">Verwijder tijdelijke bestanden na het exporteren</string>
+    <string name="delete_cache">Verwijder tijdelijke bestanden</string>
+    <string name="project_caches">Tijdelijke Projectbestanden</string>
+    <string name="no_project_cache_label">Geen tijdelijke projectbestanden</string>
+    <string name="refresh_project_dir_size">Ververs grootte</string>
+    <string name="delete_project_cache">Verwijder tijdelijke projectbestanden</string>
+    <string name="update_available">Update Beschikbaar</string>
+    <string name="rootfs_update_is_available_text">Een nieuwe rootfs versie is beschikbaar (%1$s). De huidige versie is: %2$s</string>
+    <string name="rootfs_update_instruction_text">Verwijder de rootfs en herinstalleer ze om te updaten.</string>
+    <string name="global_gradle_cache">Globale Tijdelijke Gradle Bestanden</string>
+    <string name="tab_projects">Projecten</string>
+    <string name="tab_rootfs">Rootfs</string>
+    <string name="tab_settings">Instellingen</string>
+</resources>
