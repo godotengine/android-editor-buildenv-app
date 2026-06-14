@@ -9,9 +9,9 @@
     <string name="rootfs_ready_message">Rootfs virker til at være installeret!</string>
     <string name="gradle_build_dir_label">Gradle Build Mappe</string>
     <string name="notification_perm_request_title">Notifikations tilladelse påkrævet</string>
-    <string name="notification_perm_request_message">GABE har brug for notifikations tilladelse for at bede om adgang til din projekt mappe når et gradle build er started. Den kan ikke bygge dit projet uden.</string>
+    <string name="notification_perm_request_message">GABE har brug for notifikations tilladelse for at bede om adgang til din projekt mappe når et gradle build er started. Den kan ikke bygge dit projekt uden.</string>
     <string name="perm_request_positive_btn">Tillad</string>
-    <string name="perm_request_negative_btn">Ikke nu</string>
+    <string name="perm_request_negative_btn">Afvis</string>
     <string name="dir_access_notification_channel_name">Projekt Adgang</string>
     <string name="dir_access_notification_channel_description">Anmoder om adgang til projektmappen</string>
     <string name="dir_access_notification_title">Mappe adgang påkrævet</string>
@@ -20,13 +20,13 @@
     <string name="delete_cache">Slet Cache</string>
     <string name="project_caches">Projekt Caches</string>
     <string name="no_project_cache_label">Ingen projekt caches</string>
-    <string name="refresh_project_dir_size">Opdater size</string>
-    <string name="delete_project_cache">Sleet projekt cache</string>
+    <string name="refresh_project_dir_size">Opdater størrelse</string>
+    <string name="delete_project_cache">Slet projekt cache</string>
     <string name="update_available">Opdatering tilgængelig</string>
     <string name="rootfs_update_is_available_text">En nyere rootfs version er tilgængelig (%1$s). Nuværende version: %2$s</string>
     <string name="rootfs_update_instruction_text">For at opdatere, slet din rootfs og geninstaller det.</string>
     <string name="global_gradle_cache">Global Gradle Cache</string>
-    <string name="tab_projects">Projektter</string>
+    <string name="tab_projects">Projekter</string>
     <string name="tab_rootfs">Rootfs</string>
     <string name="tab_settings">Indstillinger</string>
 </resources>
