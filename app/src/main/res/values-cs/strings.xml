@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Godot Android Build Environment</string>
+    <string name="app_launcher_name">GABE</string>
+    <string name="install_rootfs_button">Nainstalovat Rootfs</string>
+    <string name="delete_rootfs_button">Odstranit Rootfs</string>
+    <string name="installing_rootfs_message">Instalování rootfs...\nMůže to trvat několik minut.</string>
+    <string name="deleting_rootfs_message">Odstraňování rootfs...</string>
+    <string name="missing_rootfs_message">Rootfs není nainstalován!\nNebudete moci provádět sestavení Gradle, dokud jej nenainstalujete.</string>
+    <string name="rootfs_ready_message">Zdá se, že Rootfs je nainstalován!</string>
+    <string name="gradle_build_dir_label">Adresář sestavení Gradle</string>
+    <string name="notification_perm_request_title">Vyžadováno oprávnění k oznámením</string>
+    <string name="notification_perm_request_message">GABE vyžaduje oprávnění k oznámením pro požádání o přístup k adresáři tvého projektu, když se spustí sestavení gradle. Bez toho nemůže sestavení pokračovat.</string>
+    <string name="perm_request_positive_btn">Povolit</string>
+    <string name="perm_request_negative_btn">Ne teď</string>
+    <string name="dir_access_notification_channel_name">Přístup k Projektu</string>
+    <string name="dir_access_notification_channel_description">Žádá o přístup k adresáři projektu</string>
+    <string name="dir_access_notification_title">Vyžadován přístup k adresáři</string>
+    <string name="dir_access_notification_message">Klepnutím udělíte přístup k adresáři projektu</string>
+    <string name="clear_project_cache_setting">Vymazat mezipaměť projektu, když sestavení skončí</string>
+    <string name="delete_cache">Vymazat mezipaměť</string>
+    <string name="project_caches">Mezipaměti projektů</string>
+    <string name="no_project_cache_label">Žádné mezipaměti projektů</string>
+    <string name="refresh_project_dir_size">Obnovit velikost</string>
+    <string name="delete_project_cache">Vymazat mezipaměť projektu</string>
+    <string name="update_available">Dostupná aktualizace</string>
+    <string name="rootfs_update_is_available_text">Novější verze rootfs je dostupná (%1$s). Aktuální verze: %2$s</string>
+    <string name="rootfs_update_instruction_text">Pro aktualizaci odstraňte rootfs a zvonu jej nainstalujte.</string>
+    <string name="global_gradle_cache">Globální mezipaměť Gradle</string>
+    <string name="tab_projects">Projekty</string>
+    <string name="tab_rootfs">Rootfs</string>
+    <string name="tab_settings">Nastavení</string>
+</resources>
