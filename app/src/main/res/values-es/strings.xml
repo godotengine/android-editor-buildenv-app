@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Entorno de compilación de Godot para Android</string>
+    <string name="app_name">Godot Android Build Environment</string>
     <string name="app_launcher_name">GABE</string>
     <string name="install_rootfs_button">Instalar Rootfs</string>
     <string name="delete_rootfs_button">Eliminar Rootfs</string>
