@@ -1,6 +1,7 @@
 [versions]
 agp = "8.13.2"
 commonsCompress = "1.28.0"
+desugar_jdk_libs_nio = "2.1.5"
 kotlin = "2.3.10"
 kotlinxSerialization = "1.10.0"
 coreKtx = "1.17.0"
@@ -16,6 +17,7 @@ documentfile = "1.1.0"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
+desugar_jdk_libs_nio = { module = "com.android.tools:desugar_jdk_libs_nio", version.ref = "desugar_jdk_libs_nio" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
