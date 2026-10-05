@@ -152,6 +152,10 @@ fun RootfsInstallOrDeleteButton(
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var errorMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var progressMessages by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    
+    // New state for live timer updates
+    var extractionProgress by rememberSaveable { mutableStateOf("") }
+    
     var commandId by remember { mutableIntStateOf(0) }
 
     var serviceMessenger by remember { mutableStateOf<Messenger?>(null) }
@@ -166,6 +170,7 @@ fun RootfsInstallOrDeleteButton(
         isLoading = true
         errorMessage = null
         progressMessages = emptyList()
+        extractionProgress = "" // Reset progress on new extraction
         commandId++
 
         val msg = Message.obtain(null, msgType, commandId, 0)
@@ -200,6 +205,12 @@ fun RootfsInstallOrDeleteButton(
                 val handler = object : Handler(Looper.getMainLooper()) {
                     override fun handleMessage(msg: Message) {
                         when (msg.what) {
+                            // Catching the new timer message from BuildEnvironmentService
+                            BuildEnvironmentService.MSG_EXTRACTION_PROGRESS -> {
+                                val timerText = msg.data.getString("timerText") ?: ""
+                                extractionProgress = timerText
+                            }
+                            
                             BuildEnvironmentService.MSG_COMMAND_OUTPUT -> {
                                 val line = msg.data.getString("line") ?: ""
                                 progressMessages = progressMessages + line
@@ -208,6 +219,7 @@ fun RootfsInstallOrDeleteButton(
                             BuildEnvironmentService.MSG_COMMAND_RESULT -> {
                                 val result = msg.arg2
                                 isLoading = false
+                                extractionProgress = "" // Clear the timer when finished
 
                                 if (result == 0) {
                                     fileExists = rootfsReadyFile.exists()
@@ -243,10 +255,21 @@ fun RootfsInstallOrDeleteButton(
         isLoading -> {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(20.dp))
+            
             if (fileExists) {
                 Text(stringResource(R.string.deleting_rootfs_message))
             } else {
                 Text(stringResource(R.string.installing_rootfs_message))
+                
+                // Display the live timer progress if data is available
+                if (extractionProgress.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = extractionProgress,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

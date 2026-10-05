@@ -13,39 +13,77 @@ import java.io.IOException
 import java.io.InputStream
 
 object TarXzExtractor {
-    fun extractLocalTarXz(context: Context, localTarXzUri: Uri, destDir: File) {
+    
+    fun extractLocalTarXz(
+        context: Context, 
+        localTarXzUri: Uri, 
+        destDir: File, 
+        onProgress: ((Int, Long) -> Unit)? = null
+    ) {
         context.contentResolver.openInputStream(localTarXzUri).use { inputStream ->
             if (inputStream == null) {
                 throw IOException("Failed to open local rootfs file")
             }
-            extractTarXz(inputStream, destDir)
+            extractTarXz(inputStream, destDir, onProgress)
         }
     }
 
-    fun extractAssetTarXz(context: Context, assetTarXz: String, destDir: File) {
+    fun extractAssetTarXz(
+        context: Context, 
+        assetTarXz: String, 
+        destDir: File, 
+        onProgress: ((Int, Long) -> Unit)? = null
+    ) {
         context.assets.open(assetTarXz).use { inputStream ->
-            extractTarXz(inputStream, destDir)
+            extractTarXz(inputStream, destDir, onProgress)
         }
     }
 
-    fun extractFileTarXz(sourceFile: File, destDir: File) {
+    fun extractFileTarXz(
+        sourceFile: File, 
+        destDir: File, 
+        onProgress: ((Int, Long) -> Unit)? = null
+    ) {
         sourceFile.inputStream().use { inputStream ->
-            extractTarXz(inputStream, destDir)
+            extractTarXz(inputStream, destDir, onProgress)
         }
     }
 
-    private fun extractTarXz(inputStream: InputStream, destDir: File) {
+    private fun extractTarXz(
+        inputStream: InputStream, 
+        destDir: File, 
+        onProgress: ((Int, Long) -> Unit)?
+    ) {
         if (!destDir.exists() && !destDir.mkdirs()) {
             throw IllegalStateException("Could not create destination dir: ${destDir.absolutePath}")
         }
 
         val destRoot = destDir.canonicalFile
+        val sharedBuffer = ByteArray(128 * 1024)
+        
+        val startTime = System.currentTimeMillis()
+        var lastUpdateTime = startTime
+        var fileCount = 0
+
+        // NEW: We define a reusable function to check the time and update the UI
+        val tickProgress = {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastUpdateTime >= 50) {
+                lastUpdateTime = currentTime
+                onProgress?.invoke(fileCount, currentTime - startTime)
+            }
+        }
 
         BufferedInputStream(inputStream).use { buf ->
             XZCompressorInputStream(buf).use { xz ->
                 TarArchiveInputStream(xz).use { tar ->
                     var entry = tar.nextTarEntry
                     while (entry != null) {
+                        fileCount++
+                        
+                        // Check time before starting a new file
+                        tickProgress()
+
                         val outFile = File(destDir, entry.name)
                         val outCanonical = outFile.canonicalFile
 
@@ -79,7 +117,8 @@ object TarXzExtractor {
                                 try {
                                     Os.link(target, outCanonical.path)
                                 } catch (e: ErrnoException) {
-                                    copyFromFile(File(target), outCanonical)
+                                    // Pass the tickProgress function down
+                                    copyFromFile(File(target), outCanonical, sharedBuffer, tickProgress)
                                 }
                                 applyMode(outCanonical, entry.mode)
                                 applyMtime(outCanonical, entry.modTime.time)
@@ -88,7 +127,8 @@ object TarXzExtractor {
                             else -> {
                                 outCanonical.parentFile?.let { if (!it.exists()) it.mkdirs() }
                                 FileOutputStream(outCanonical).use { fos ->
-                                    copyStream(tar, fos)
+                                    // Pass the tickProgress function down
+                                    copyStream(tar, fos, sharedBuffer, tickProgress)
                                 }
                                 applyMode(outCanonical, entry.mode)
                                 applyMtime(outCanonical, entry.modTime.time)
@@ -100,26 +140,42 @@ object TarXzExtractor {
                 }
             }
         }
+        
+        // Final UI update when 100% complete
+        val finalElapsedMs = System.currentTimeMillis() - startTime
+        onProgress?.invoke(fileCount, finalElapsedMs)
     }
 
-    private fun copyStream(input: TarArchiveInputStream, output: FileOutputStream) {
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    // NEW: Accepts tickProgress and calls it while looping through large files
+    private fun copyStream(
+        input: TarArchiveInputStream, 
+        output: FileOutputStream, 
+        buffer: ByteArray,
+        tickProgress: () -> Unit
+    ) {
         while (true) {
             val read = input.read(buffer)
             if (read <= 0) break
             output.write(buffer, 0, read)
+            tickProgress() // Update UI during massive file writes!
         }
         output.flush()
     }
 
-    private fun copyFromFile(src: File, dst: File) {
+    // NEW: Accepts tickProgress and calls it while looping through large files
+    private fun copyFromFile(
+        src: File, 
+        dst: File, 
+        buffer: ByteArray,
+        tickProgress: () -> Unit
+    ) {
         src.inputStream().use { `in` ->
             dst.outputStream().use { out ->
-                val buf = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (true) {
-                    val n = `in`.read(buf)
+                    val n = `in`.read(buffer)
                     if (n <= 0) break
-                    out.write(buf, 0, n)
+                    out.write(buffer, 0, n)
+                    tickProgress() // Update UI during massive file copies!
                 }
             }
         }
