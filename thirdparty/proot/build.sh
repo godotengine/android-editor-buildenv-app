@@ -2,6 +2,8 @@
 
 ANDROID_API="${ANDROID_API:-32}"
 HOST_TAG="${HOST_TAG:-linux-x86_64}"
+TARGET_ARCH="${TARGET_ARCH:-arm64-v8a}"
+TARGET_PREFIX="${TARGET_PREFIX:-aarch64}"
 
 TALLOC_VERSION="${TALLOC_VERSION:-2.4.3}"
 TALLOC_SHA256="${TALLOC_SHA256:-dc46c40b9f46bb34dd97fe41f548b0e8b247b77a918576733c528e83abd854dd}"
@@ -19,7 +21,7 @@ if ! [ -e "$ANDROID_TOOLCHAIN" ]; then
 	exit 1
 fi
 
-ANDROID_CC="$ANDROID_TOOLCHAIN/aarch64-linux-android${ANDROID_API}-clang"
+ANDROID_CC="$ANDROID_TOOLCHAIN/${TARGET_PREFIX}-linux-android${ANDROID_API}-clang"
 
 if ! [ -e "$ANDROID_CC" ]; then
 	echo "ERROR: Unable to find Android C compiler at ${ANDROID_CC}" > /dev/stderr
@@ -87,11 +89,11 @@ popd > /dev/null
 CPPFLAGS="-I$TALLOC_DIR/include" LDFLAGS="-L$TALLOC_DIR/lib" make -C "$PROOT_DIR/src" CC="$ANDROID_CC" CROSS_COMPILE="$ANDROID_TOOLCHAIN/llvm-" PROOT_UNBUNDLE_LOADER=1 HAS_LOADER_32BIT=1 V=1 proot \
     || die "Unable to build proot"
 
-mkdir -p "$BUILD_DIR/bin/arm64-v8a"
+mkdir -p "$BUILD_DIR/bin/$TARGET_ARCH"
 
-cp "$PROOT_DIR/src/loader/loader" "$BUILD_DIR/bin/arm64-v8a/libproot-loader.so" \
+cp "$PROOT_DIR/src/loader/loader" "$BUILD_DIR/bin/$TARGET_ARCH/libproot-loader.so" \
     || die "Unable to copy loader"
-cp "$PROOT_DIR/src/loader/loader-m32" "$BUILD_DIR/bin/arm64-v8a/libproot-loader32.so" \
+cp "$PROOT_DIR/src/loader/loader-m32" "$BUILD_DIR/bin/$TARGET_ARCH/libproot-loader32.so" \
     || die "Unable to copy loader32"
-cp "$PROOT_DIR/src/proot" "$BUILD_DIR/bin/arm64-v8a/libproot.so" \
+cp "$PROOT_DIR/src/proot" "$BUILD_DIR/bin/$TARGET_ARCH/libproot.so" \
     || die "Unable to copy proot"

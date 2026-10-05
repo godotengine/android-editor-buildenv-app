@@ -24,10 +24,11 @@ jobs:
           add-to-path: false
 
       - name: Build proot
-        run: |
-          thirdparty/proot/build.sh
         env:
           ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          TARGET_ARCH=arm64-v8a TARGET_PREFIX=aarch64 thirdparty/proot/build.sh
+          TARGET_ARCH=x86_64    TARGET_PREFIX=x86_64  thirdparty/proot/build.sh
 
       - name: Set up JDK
         uses: actions/setup-java@v4
