@@ -92,7 +92,13 @@ object FileUtils {
         return String.format("%.1f %s", value, units[unitIndex])
     }
 
-    fun importAndroidProject(context: Context, projectTreeUri: Uri, gradleBuildDir: String, destDir: File) {
+    fun importAndroidProject(
+        context: Context, 
+        projectTreeUri: Uri, 
+        gradleBuildDir: String, 
+        destDir: File,
+        onProgress: (String) -> Unit 
+    ) {
         val root = DocumentFile.fromTreeUri(context, projectTreeUri)
             ?: throw IOException("Invalid tree uri")
 
@@ -102,6 +108,8 @@ object FileUtils {
         val addonsDir = root.listFiles().firstOrNull {
             it.isDirectory && it.name == ADDONS_DIR_NAME
         }
+
+        val pluginsDir = findDirByPath(root, "android/plugins")
 
         if (destDir.exists()) {
             val apkAssetsDir = File(destDir, "src/main/assets")
@@ -113,7 +121,8 @@ object FileUtils {
             destDir.mkdirs()
         }
 
-        copyDirectoryMerge(context, gradleDir, destDir)
+        onProgress("> Importing Gradle build directory...")
+        copyDirectoryMerge(context, gradleDir, destDir, onProgress)
 
         if (addonsDir != null) {
             val localAddons = File(destDir, ADDONS_DIR_NAME)
@@ -121,9 +130,26 @@ object FileUtils {
                 localAddons.deleteRecursively()
             }
             localAddons.mkdirs()
-            copyDirectoryMerge(context, addonsDir, localAddons)
+            onProgress("> Importing Addons directory...")
+            copyDirectoryMerge(context, addonsDir, localAddons, onProgress)
+        }
+        
+        if (pluginsDir != null) {
+            // Force V1 plugins to copy directly into the project root directory!
+            onProgress("> Importing v1 Plugins directory...")
+            copyDirectoryMerge(context, pluginsDir, destDir, onProgress)
         }
     }
+
+        /*if (pluginsDir != null) {
+            val localPlugins = File(destDir.parentFile, "plugins")
+            if (localPlugins.exists()) {
+                localPlugins.deleteRecursively()
+            }
+            localPlugins.mkdirs()
+            onProgress("> Importing v1 Plugins directory...")
+            copyDirectoryMerge(context, pluginsDir, localPlugins, onProgress)
+        }*/
 
     private fun findDirByPath(parent: DocumentFile, relativePath: String): DocumentFile? {
         var current: DocumentFile? = parent
@@ -139,16 +165,34 @@ object FileUtils {
         return current
     }
 
-    private fun copyDirectoryMerge(context: Context, src: DocumentFile, dest: File) {
+    private fun copyDirectoryMerge(
+        context: Context, 
+        src: DocumentFile, 
+        dest: File,
+        onProgress: (String) -> Unit 
+    ) {
         src.listFiles().forEach { file ->
             val name = file.name ?: return@forEach
 
             if (file.isDirectory) {
                 val newDir = File(dest, name)
                 if (!newDir.exists()) newDir.mkdirs()
-                copyDirectoryMerge(context, file, newDir)
+                
+                // Log directory milestones instead of every internal file
+                onProgress("Importing Directory: $name")
+                copyDirectoryMerge(context, file, newDir, onProgress)
             } else {
                 val outFile = File(dest, name)
+                
+                // Only log high-value plugin binaries, configuration, or build files to the UI
+                if (name.endsWith(".aar", true) || 
+                    name.endsWith(".jar", true) || 
+                    name.endsWith(".gdap", true) || 
+                    name.endsWith(".gradle", true) || 
+                    name == "AndroidManifest.xml") {
+                    onProgress("Importing Plugin/Config: $name")
+                }
+                
                 context.contentResolver.openInputStream(file.uri).use { input ->
                     FileOutputStream(outFile, false).use { output ->
                         input?.copyTo(output)

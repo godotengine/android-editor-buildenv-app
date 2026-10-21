@@ -28,6 +28,9 @@ class BuildEnvironmentService : Service() {
         const val MSG_INSTALL_ROOTFS = 7
         const val MSG_DELETE_ROOTFS = 8
         const val MSG_BUILD_DIR_ACCESS_GRANTED = 9
+        
+        // NEW: Constant for live timer updates sent to the UI
+        const val MSG_EXTRACTION_PROGRESS = 99 
 
         const val EXTRA_LOCAL_ROOTFS_URI = "local_rootfs_uri"
     }
@@ -201,15 +204,31 @@ class BuildEnvironmentService : Service() {
 
         try {
             mBuildEnvironment.installRootfs(localUri) { type, line ->
-                val outputMsg = Message.obtain(null, MSG_COMMAND_OUTPUT, id, type)
-                val outputData = Bundle()
-                outputData.putString("line", line)
-                outputMsg.data = outputData
+                
+                // NEW: If type is 99, route it to the UI's progress timer state
+                if (type == MSG_EXTRACTION_PROGRESS) {
+                    val progressMsg = Message.obtain(null, MSG_EXTRACTION_PROGRESS)
+                    val bundle = Bundle()
+                    bundle.putString("timerText", line)
+                    progressMsg.data = bundle
+                    
+                    try {
+                        msg.replyTo.send(progressMsg)
+                    } catch (e: RemoteException) {
+                        Log.e(TAG, "Error sending progress to client: ${e.message}")
+                    }
+                } else {
+                    // Standard command output routing
+                    val outputMsg = Message.obtain(null, MSG_COMMAND_OUTPUT, id, type)
+                    val outputData = Bundle()
+                    outputData.putString("line", line)
+                    outputMsg.data = outputData
 
-                try {
-                    msg.replyTo.send(outputMsg)
-                } catch (e: RemoteException) {
-                    Log.e(TAG, "Error sending output to client: ${e.message}")
+                    try {
+                        msg.replyTo.send(outputMsg)
+                    } catch (e: RemoteException) {
+                        Log.e(TAG, "Error sending output to client: ${e.message}")
+                    }
                 }
             }
         } catch (e: Exception) {

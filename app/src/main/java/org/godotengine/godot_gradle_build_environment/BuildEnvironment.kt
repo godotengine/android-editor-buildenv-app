@@ -135,10 +135,16 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             Log.d(TAG, "Cmd: " + sanitizeCommand(cmd))
         }
 
-        currentProcess = ProcessBuilder(cmd).apply {
-            directory(context.filesDir)
-            environment().putAll(env)
-        }.start()
+        try {
+            currentProcess = ProcessBuilder(cmd).apply {
+                directory(context.filesDir)
+                environment().putAll(env)
+            }.start()
+        } catch (e: Exception) {
+            outputHandler(OUTPUT_STDERR, "> CRITICAL ERROR: Android OS blocked the Linux environment from starting!")
+            outputHandler(OUTPUT_STDERR, "> Details: ${e.message}")
+            return 255
+        }
 
         val stdoutThread = logAndCaptureStream(BufferedReader(InputStreamReader(currentProcess?.inputStream))) { line ->
             Log.i(STDOUT_TAG, line)
@@ -157,13 +163,23 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
 
         val exitCode = currentProcess?.waitFor() ?: 255
         Log.i(TAG, "ExitCode: $exitCode")
+        
+        if (exitCode != 0) {
+            outputHandler(OUTPUT_STDERR, "> Linux Environment crashed instantly with Exit Code: $exitCode")
+        }
 
         currentProcess = null
         return exitCode
     }
-
-    private fun setupProject(projectPath: String, gradleBuildDir: String, outputHandler: (Int, String) -> Unit): File {
+    
+    private fun setupProject(
+        projectPath: String, 
+        gradleBuildDir: String, 
+        isPackagingPhase: Boolean, 
+        outputHandler: (Int, String) -> Unit
+    ): File {
         val workDir = Utils.getProjectCacheDir(context, projectPath, gradleBuildDir)
+        val actionText = if (isPackagingPhase) "Packaging" else "Importing"
 
         if (BuildConfig.FLAVOR == "picoos" || BuildConfig.FLAVOR == "horizonos") {
             val sourceDir = File(projectPath, gradleBuildDir)
@@ -178,7 +194,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
                 workDir.mkdirs()
             }
 
-            outputHandler(OUTPUT_INFO, "> Importing project files...")
+            outputHandler(OUTPUT_INFO, "> $actionText project files...")
             if (!FileUtils.tryCopyDirectory(sourceDir, workDir)) {
                 throw IOException("Failed to copy $sourceDir to $workDir")
             }
@@ -233,14 +249,29 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             ProjectInfo.writeToDirectory(context, workDir, projectPath, gradleBuildDir, projectTreeUri)
         }
 
-        outputHandler(OUTPUT_INFO, "> Importing project files...")
-        FileUtils.importAndroidProject(context, projectTreeUri, gradleBuildDir, workDir)
+        outputHandler(OUTPUT_INFO, "> $actionText project files...")
+        
+        // Dynamically intercept the strings coming from FileUtils and replace them if we are packaging!
+        FileUtils.importAndroidProject(context, projectTreeUri, gradleBuildDir, workDir) { fileName ->
+            val finalMsg = if (isPackagingPhase) fileName.replace("Importing", "Packaging") else fileName
+            outputHandler(OUTPUT_INFO, finalMsg)
+        }
+        
+        val gradlewFile = File(workDir, "gradlew")
+        if (gradlewFile.exists()) {
+            gradlewFile.setExecutable(true, false)
+        }
+        
+        val finishText = if (isPackagingPhase) "Packaged" else "Imported"
+        outputHandler(OUTPUT_INFO, "> Project $finishText!")
         return workDir
     }
 
     private fun fixGradleArgs(projectPath: String, rawGradleArgs: List<String>): List<String> {
         val normalizedProjectPath = projectPath.trimEnd('/')
-        return rawGradleArgs.map { arg ->
+        val verboseArgs = rawGradleArgs.toMutableList()
+
+        return verboseArgs.map { arg ->
             when {
                 arg.startsWith("-Pdebug_keystore_file=") -> "-Pdebug_keystore_file=/project/.android/debug.keystore"
                 arg.startsWith("-Prelease_keystore_file=") -> "-Prelease_keystore_file=/project/.android/release.keystore"
@@ -249,11 +280,17 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
                 arg.startsWith("-Pplugins_local_binaries=") -> {
                     val prefix = "-Pplugins_local_binaries="
                     val value = arg.removePrefix(prefix)
-                    val updated = value.replace(
-                        "$normalizedProjectPath/${FileUtils.ADDONS_DIR_NAME}",
-                        "/project/${FileUtils.ADDONS_DIR_NAME}"
-                    )
-                    prefix + updated
+                    
+                    // Godot sends a comma-separated list of absolute Android OS paths.
+                    // Since FileUtils.kt now dumps all V1 plugins directly into the PRoot workspace,
+                    // we just isolate the file name and point Gradle to /project/FileName.aar
+                    val updatedPaths = value.split(",").map { rawPath ->
+                        val cleanPath = rawPath.trim().removeSurrounding("\"").removeSurrounding("'")
+                        val fileName = File(cleanPath).name
+                        "/project/$fileName"
+                    }.joinToString(",")
+                    
+                    prefix + updatedPaths
                 }
 
                 else -> arg
@@ -286,10 +323,19 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
 
         rootfs.mkdirs()
 
+        val progressCallback: (Int, Long) -> Unit = { count, elapsedMs ->
+            val totalSeconds = (elapsedMs / 1000).toInt()
+            val minutes = totalSeconds / 60
+            val seconds = totalSeconds % 60
+            val timeString = String.format("%02d:%02d", minutes, seconds)
+            
+            outputHandler(99, "Extracted: $count files ($timeString)") 
+        }
+
         val version: String
         if (localUri != null) {
             outputHandler(OUTPUT_INFO, "> Extracting rootfs from local file...")
-            TarXzExtractor.extractLocalTarXz(context, localUri, rootfs)
+            TarXzExtractor.extractLocalTarXz(context, localUri, rootfs, progressCallback)
             version = ROOTFS_VERSION_CUSTOM
         } else {
             val hasAsset = try {
@@ -299,7 +345,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             }
             if (hasAsset) {
                 outputHandler(OUTPUT_INFO, "> Extracting rootfs from assets...")
-                TarXzExtractor.extractAssetTarXz(context, ROOTFS_ASSET_PATH, rootfs)
+                TarXzExtractor.extractAssetTarXz(context, ROOTFS_ASSET_PATH, rootfs, progressCallback)
                 version = ROOTFS_VERSION_CUSTOM
             } else {
                 val tempFile = File(context.cacheDir, ROOTFS_FILENAME)
@@ -314,7 +360,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
                     version = releaseTag
 
                     outputHandler(OUTPUT_INFO, "> Extracting rootfs...")
-                    TarXzExtractor.extractFileTarXz(tempFile, rootfs)
+                    TarXzExtractor.extractFileTarXz(tempFile, rootfs, progressCallback)
                 } finally {
                     if (tempFile.exists()) {
                         tempFile.delete()
@@ -443,8 +489,11 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             return 255
         }
 
+        // Check if Godot is running the final build/packaging tasks
+        val isPackagingPhase = !rawGradleArgs.any { it.contains("assemble") || it.contains("bundle") }
+
         val workDir = try {
-            setupProject(projectPath, gradleBuildDir, outputHandler)
+            setupProject(projectPath, gradleBuildDir, isPackagingPhase, outputHandler)
         } catch (e: Exception) {
             outputHandler(OUTPUT_STDERR, "Unable to setup project: ${e.message}")
             return 255
@@ -459,15 +508,28 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             }
             outputHandler(type, line)
         }
+        
+        val baseArgs =  if (BuildConfig.FLAVOR == "picoos" || BuildConfig.FLAVOR == "horizonos") {
+            rawGradleArgs
+        } else {
+            fixGradleArgs(projectPath, rawGradleArgs) 
+        }
+        
+        val gradleArgs = baseArgs.toMutableList()
+        // Let the Linux shell dynamically find the exact path to AAPT2 (e.g., /opt/sdk/build-tools/36.1.0/aapt2)
+        // Since the gradleCmd string uses double quotes, bash will evaluate $(which aapt2) perfectly!
+        gradleArgs.add("-Pandroid.aapt2FromMavenOverride=\$(which aapt2)")
+        
+        var result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
 
-        val gradleArgs =  if (BuildConfig.FLAVOR == "picoos" || BuildConfig.FLAVOR == "horizonos") {
+        
+        /**val gradleArgs =  if (BuildConfig.FLAVOR == "picoos" || BuildConfig.FLAVOR == "horizonos") {
             // GABE has full storage access on XR devices, so we are not pulling addons dir, or keystore files.
             rawGradleArgs
         } else {
             fixGradleArgs(projectPath, rawGradleArgs)
         }
-
-        var result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
+        var result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)**/
 
         val stderr = stderrBuilder.toString()
         if (result == 0 && stderr.contains("BUILD FAILED")) {
@@ -493,8 +555,8 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             // Now, try running Gradle again!
             outputHandler(OUTPUT_INFO, "> Retrying Gradle build...")
             result = executeGradleInternal(gradleArgs, workDir, captureOutputHandler)
-            val stderr = stderrBuilder.toString()
-            if (result == 0 && stderr.contains("BUILD FAILED")) {
+            val stderr2 = stderrBuilder.toString()
+            if (result == 0 && stderr2.contains("BUILD FAILED")) {
                 result = 1
             }
         }
