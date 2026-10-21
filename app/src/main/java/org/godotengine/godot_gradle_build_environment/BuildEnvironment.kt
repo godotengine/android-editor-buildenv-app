@@ -32,8 +32,7 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
         const val ROOTFS_GITHUB_REPO = "godotengine/android-editor-buildenv-rootfs"
         const val ROOTFS_VERSION_CUSTOM = "custom"
 
-        private const val ROOTFS_FILENAME = "alpine-android-35-jdk17.tar.xz"
-        private const val ROOTFS_ASSET_PATH = "linux-rootfs/$ROOTFS_FILENAME"
+        private const val ROOTFS_ASSET_PATH = "linux-rootfs/godot-rootfs.tar.xz"
 
         private const val DIR_ACCESS_WAIT_DURATION = 120_000L // in milliseconds
 
@@ -292,8 +291,9 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
             TarXzExtractor.extractLocalTarXz(context, localUri, rootfs)
             version = ROOTFS_VERSION_CUSTOM
         } else {
+            val rootfsFilename = Utils.getRootfsFilename()
             val hasAsset = try {
-                context.assets.list("linux-rootfs")?.contains(ROOTFS_FILENAME) == true
+                context.assets.list("linux-rootfs")?.contains(rootfsFilename) == true
             } catch (e: Exception) {
                 false
             }
@@ -302,11 +302,11 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
                 TarXzExtractor.extractAssetTarXz(context, ROOTFS_ASSET_PATH, rootfs)
                 version = ROOTFS_VERSION_CUSTOM
             } else {
-                val tempFile = File(context.cacheDir, ROOTFS_FILENAME)
+                val tempFile = File(context.cacheDir, rootfsFilename)
                 try {
                     val releaseTag = GitHubReleaseDownloader.downloadLatestReleaseAsset(
                         ROOTFS_GITHUB_REPO,
-                        ROOTFS_FILENAME,
+                        rootfsFilename,
                         tempFile
                     ) { message ->
                         outputHandler(OUTPUT_INFO, message)
