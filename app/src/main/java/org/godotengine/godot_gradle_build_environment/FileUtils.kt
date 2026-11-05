@@ -22,6 +22,7 @@ object FileUtils {
     private val TAG = FileUtils::class.java.simpleName
     private const val PREF_NAME = "tree_uri_prefs"
     const val ADDONS_DIR_NAME = "addons"
+    const val V1_PLUGINS_DIR_PATH = ".android/v1_plugins"
 
     fun tryCopyDirectory(sourceDir: File, destDir: File): Boolean {
         if (!sourceDir.isDirectory) {
@@ -99,9 +100,10 @@ object FileUtils {
         val gradleDir = findDirByPath(root, gradleBuildDir)
             ?: throw IOException("Gradle build dir not found: $gradleBuildDir")
 
-        val addonsDir = root.listFiles().firstOrNull {
-            it.isDirectory && it.name == ADDONS_DIR_NAME
-        }
+        val rootFiles = root.listFiles()
+        val addonsDir = rootFiles.firstOrNull { it.isDirectory && it.name == ADDONS_DIR_NAME }
+        val androidDir = rootFiles.firstOrNull { it.isDirectory && it.name == "android" }
+        val pluginsDir = androidDir?.listFiles()?.firstOrNull { it.isDirectory && it.name == "plugins" }
 
         if (destDir.exists()) {
             val apkAssetsDir = File(destDir, "src/main/assets")
@@ -117,11 +119,16 @@ object FileUtils {
 
         if (addonsDir != null) {
             val localAddons = File(destDir, ADDONS_DIR_NAME)
-            if (localAddons.exists()) {
-                localAddons.deleteRecursively()
-            }
+            if (localAddons.exists()) localAddons.deleteRecursively()
             localAddons.mkdirs()
             copyDirectoryMerge(context, addonsDir, localAddons)
+        }
+
+        if (pluginsDir != null) {
+            val localPlugins = File(destDir, V1_PLUGINS_DIR_PATH)
+            if (localPlugins.exists()) localPlugins.deleteRecursively()
+            localPlugins.mkdirs()
+            copyDirectoryMerge(context, pluginsDir, localPlugins)
         }
     }
 
@@ -140,8 +147,10 @@ object FileUtils {
     }
 
     private fun copyDirectoryMerge(context: Context, src: DocumentFile, dest: File) {
-        src.listFiles().forEach { file ->
-            val name = file.name ?: return@forEach
+        val contentResolver = context.contentResolver
+        val files = src.listFiles()
+        for (file in files) {
+            val name = file.name ?: continue
 
             if (file.isDirectory) {
                 val newDir = File(dest, name)
@@ -149,9 +158,9 @@ object FileUtils {
                 copyDirectoryMerge(context, file, newDir)
             } else {
                 val outFile = File(dest, name)
-                context.contentResolver.openInputStream(file.uri).use { input ->
+                contentResolver.openInputStream(file.uri)?.use { input ->
                     FileOutputStream(outFile, false).use { output ->
-                        input?.copyTo(output)
+                        input.copyTo(output, bufferSize = 32 * 1024)
                     }
                 }
             }
