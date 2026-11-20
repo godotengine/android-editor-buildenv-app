@@ -70,4 +70,8 @@ object Utils {
         val hash = Integer.toHexString(fullPath.absolutePath.hashCode())
         return File(AppPaths.getProjectDir(context).absolutePath, hash)
     }
+
+    fun getPrimaryAbi(): String? = Build.SUPPORTED_ABIS.firstOrNull()
+
+    fun getRootfsFilename(): String = "godot-rootfs-${getPrimaryAbi()?: "arm64-v8a"}.tar.xz"
 }

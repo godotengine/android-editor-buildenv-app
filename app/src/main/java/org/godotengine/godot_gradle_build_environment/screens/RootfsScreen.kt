@@ -285,7 +285,7 @@ fun RootfsInstallOrDeleteButton(
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(onClick = {
-                localFilePicker.launch(arrayOf("application/x-xz"))
+                localFilePicker.launch(arrayOf("application/x-xz", "application/octet-stream"))
             }) {
                 Text(stringResource(R.string.install_rootfs_local_button))
             }
