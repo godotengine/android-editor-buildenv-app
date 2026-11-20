@@ -249,10 +249,15 @@ class BuildEnvironment(private val context: Context, private val rootfs: String,
                 arg.startsWith("-Pplugins_local_binaries=") -> {
                     val prefix = "-Pplugins_local_binaries="
                     val value = arg.removePrefix(prefix)
-                    val updated = value.replace(
-                        "$normalizedProjectPath/${FileUtils.ADDONS_DIR_NAME}",
-                        "/project/${FileUtils.ADDONS_DIR_NAME}"
-                    )
+                    val updated = value
+                        .replace(
+                            "$normalizedProjectPath/${FileUtils.ADDONS_DIR_NAME}",
+                            "/project/${FileUtils.ADDONS_DIR_NAME}"
+                        )
+                        .replace(
+                            "$normalizedProjectPath/android/plugins",
+                            "/project/${FileUtils.V1_PLUGINS_DIR_PATH}"
+                        )
                     prefix + updated
                 }
 
